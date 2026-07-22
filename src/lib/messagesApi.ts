@@ -1,0 +1,74 @@
+import { apiFetch } from "./api";
+
+export type ConversationType = "direct" | "group" | "event";
+
+/** Matches GET /api/admin/conversations's per-conversation shape exactly
+ * (camelCase). `title` is already fully resolved server-side -- for
+ * "direct" it's the other participant's name, for "group" it's the
+ * stored title (or "Untitled group") -- so it can be displayed as-is. */
+export interface Conversation {
+  id: string;
+  type: ConversationType;
+  title: string;
+  createdAt: string;
+}
+
+export interface Message {
+  id: string;
+  senderId: string;
+  senderName: string;
+  body: string;
+  createdAt: string;
+}
+
+export interface AdminUserSummary {
+  id: string;
+  fullName: string;
+}
+
+// Task-type conversations are already excluded server-side. Event-type
+// ones aren't -- the Events tab has its own dedicated comment thread UI
+// for those (EventDetailScreen), so they're filtered out here to avoid
+// showing the same thread twice in two different tabs.
+export async function listConversations(): Promise<Conversation[]> {
+  const data = await apiFetch<{ conversations: Conversation[] }>("/api/admin/conversations");
+  return data.conversations.filter((c) => c.type !== "event");
+}
+
+export async function listMessages(conversationId: string): Promise<Message[]> {
+  const data = await apiFetch<{ messages: Message[] }>(`/api/admin/conversations/${conversationId}/messages`);
+  return data.messages;
+}
+
+export async function sendMessage(conversationId: string, body: string): Promise<{ success: true }> {
+  return apiFetch<{ success: true }>(`/api/admin/conversations/${conversationId}/messages`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ body }),
+  });
+}
+
+export async function createConversation(
+  type: "direct" | "group",
+  participantIds: string[],
+  title?: string
+): Promise<{ conversationId: string }> {
+  return apiFetch<{ conversationId: string }>("/api/admin/conversations", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ type, participantIds, title }),
+  });
+}
+
+export async function listAdminUsers(): Promise<AdminUserSummary[]> {
+  const data = await apiFetch<{ users: AdminUserSummary[] }>("/api/admin/users");
+  return data.users;
+}
+
+// Removes only the caller's own participation -- the conversation, its
+// messages, and every other participant are untouched.
+export async function leaveConversation(conversationId: string): Promise<{ success: true }> {
+  return apiFetch<{ success: true }>(`/api/admin/conversations/${conversationId}`, {
+    method: "DELETE",
+  });
+}

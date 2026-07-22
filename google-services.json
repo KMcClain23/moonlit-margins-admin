@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "942004090765",
+    "project_id": "moonlit-margins-admin",
+    "storage_bucket": "moonlit-margins-admin.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:942004090765:android:455eb3e5c9df8937aaafc4",
+        "android_client_info": {
+          "package_name": "com.anonymous.moonlitmarginsadmin"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB9WhUON3zzD0qBvim6tPPHecpZutSmrAI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
