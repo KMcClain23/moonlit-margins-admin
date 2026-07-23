@@ -29,6 +29,8 @@ import {
 } from "../lib/eventsApi";
 import { ApiError } from "../lib/apiError";
 import type { EventsStackParamList } from "../navigation/RootNavigator";
+import { colors } from "../theme/colors";
+import { typography } from "../theme/typography";
 
 type Nav = NativeStackNavigationProp<EventsStackParamList, "EventDetail">;
 type DetailRoute = RouteProp<EventsStackParamList, "EventDetail">;
@@ -160,7 +162,7 @@ export default function EventDetailScreen() {
   if (isLoading && !event) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" />
+        <ActivityIndicator size="large" color={colors.lilac.default} />
       </View>
     );
   }
@@ -252,7 +254,7 @@ export default function EventDetailScreen() {
               </Pressable>
               {rsvpsExpanded ? (
                 isLoadingRsvps ? (
-                  <ActivityIndicator style={styles.sectionLoading} />
+                  <ActivityIndicator style={styles.sectionLoading} color={colors.lilac.default} />
                 ) : rsvps.length === 0 ? (
                   <Text style={styles.emptyText}>No RSVPs yet.</Text>
                 ) : (
@@ -278,7 +280,7 @@ export default function EventDetailScreen() {
         {commentsError ? (
           <Text style={styles.errorText}>{commentsError}</Text>
         ) : isLoadingComments && comments.length === 0 ? (
-          <ActivityIndicator style={styles.sectionLoading} />
+          <ActivityIndicator style={styles.sectionLoading} color={colors.lilac.default} />
         ) : comments.length === 0 ? (
           <Text style={styles.emptyText}>No comments yet.</Text>
         ) : (
@@ -301,6 +303,7 @@ export default function EventDetailScreen() {
           <TextInput
             style={[styles.input, styles.commentInput]}
             placeholder="Add a comment…"
+            placeholderTextColor={colors.muted}
             value={commentText}
             onChangeText={setCommentText}
             editable={!isPostingComment}
@@ -312,7 +315,7 @@ export default function EventDetailScreen() {
             disabled={!commentText.trim() || isPostingComment}
           >
             {isPostingComment ? (
-              <ActivityIndicator color="#fff" size="small" />
+              <ActivityIndicator color={colors.ink} size="small" />
             ) : (
               <Text style={styles.sendButtonText}>Send</Text>
             )}
@@ -324,71 +327,82 @@ export default function EventDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  centered: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#fff", padding: 24 },
-  container: { padding: 20, backgroundColor: "#fff", flexGrow: 1 },
-  title: { fontSize: 22, fontWeight: "700", color: "#111" },
-  description: { fontSize: 15, color: "#444", marginTop: 8, lineHeight: 21 },
+  centered: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.ink, padding: 24 },
+  container: { padding: 20, backgroundColor: colors.ink, flexGrow: 1 },
+  title: { fontFamily: typography.display, fontSize: 22, color: colors.parchment },
+  description: { fontFamily: typography.body, fontSize: 15, color: colors.muted, marginTop: 8, lineHeight: 21 },
   metaRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     paddingVertical: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#ddd",
+    borderBottomColor: colors.hairline,
     marginTop: 4,
   },
-  metaLabel: { fontSize: 13, color: "#888" },
-  metaValue: { fontSize: 13, color: "#222", fontWeight: "500", flexShrink: 1, textAlign: "right" },
-  link: { color: "#1a1a2e", textDecorationLine: "underline" },
-  errorText: { color: "#c0392b", fontSize: 14, marginTop: 16, textAlign: "center" },
+  metaLabel: { fontFamily: typography.mono, fontSize: 12, color: colors.muted },
+  metaValue: {
+    fontFamily: typography.bodyMedium,
+    fontSize: 13,
+    color: colors.parchment,
+    flexShrink: 1,
+    textAlign: "right",
+  },
+  link: { color: colors.lilac.default, textDecorationLine: "underline" },
+  errorText: { fontFamily: typography.body, color: colors.candle.default, fontSize: 14, marginTop: 16, textAlign: "center" },
   buttonRow: { flexDirection: "row", gap: 16, marginTop: 20 },
   editButton: {
     borderWidth: 1,
-    borderColor: "#1a1a2e",
+    borderColor: colors.lilac.default,
     borderRadius: 999,
     paddingVertical: 8,
     paddingHorizontal: 18,
   },
-  editButtonText: { color: "#1a1a2e", fontSize: 14, fontWeight: "600" },
+  editButtonText: { fontFamily: typography.bodySemibold, color: colors.lilac.default, fontSize: 14 },
   deleteButton: { paddingVertical: 8, paddingHorizontal: 4 },
-  deleteButtonText: { color: "#c0392b", fontSize: 14, fontWeight: "600" },
+  deleteButtonText: { fontFamily: typography.bodySemibold, color: colors.candle.default, fontSize: 14 },
   section: {
     marginTop: 28,
     paddingTop: 16,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: "#ddd",
+    borderTopColor: colors.hairline,
   },
-  sectionTitle: { fontSize: 15, fontWeight: "700", color: "#111", marginBottom: 8 },
+  sectionTitle: { fontFamily: typography.bodySemibold, fontSize: 15, color: colors.parchment, marginBottom: 8 },
   sectionLoading: { marginTop: 12 },
-  emptyText: { color: "#888", fontSize: 13, marginTop: 8 },
-  linkButton: { color: "#1a1a2e", fontSize: 13, fontWeight: "500", marginTop: 4 },
+  emptyText: { fontFamily: typography.body, color: colors.muted, fontSize: 13, marginTop: 8 },
+  linkButton: { fontFamily: typography.bodyMedium, color: colors.lilac.default, fontSize: 13, marginTop: 4 },
   list: { marginTop: 12 },
   listRow: {
-    backgroundColor: "#f5f5f7",
-    borderRadius: 10,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    borderRadius: 12,
     padding: 12,
     marginBottom: 8,
   },
-  listRowTitle: { fontSize: 14, fontWeight: "600", color: "#111" },
-  listRowSubtitle: { fontSize: 12, color: "#777", marginTop: 2 },
+  listRowTitle: { fontFamily: typography.bodySemibold, fontSize: 14, color: colors.parchment },
+  listRowSubtitle: { fontFamily: typography.body, fontSize: 12, color: colors.muted, marginTop: 2 },
   commentHeader: { flexDirection: "row", justifyContent: "space-between" },
-  commentTime: { fontSize: 11, color: "#999" },
-  commentBody: { fontSize: 14, color: "#333", marginTop: 4, lineHeight: 19 },
+  commentTime: { fontFamily: typography.body, fontSize: 11, color: colors.muted },
+  commentBody: { fontFamily: typography.body, fontSize: 14, color: colors.parchment, marginTop: 4, lineHeight: 19 },
   commentInputRow: { flexDirection: "row", alignItems: "flex-end", gap: 8, marginTop: 14 },
   input: {
     borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
+    borderColor: colors.hairline,
+    borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
+    fontFamily: typography.body,
     fontSize: 15,
+    color: colors.parchment,
+    backgroundColor: colors.surface,
   },
   commentInput: { flex: 1, minHeight: 40, maxHeight: 100 },
   sendButton: {
-    backgroundColor: "#1a1a2e",
-    borderRadius: 8,
+    backgroundColor: colors.lilac.default,
+    borderRadius: 12,
     paddingVertical: 10,
     paddingHorizontal: 16,
   },
   sendButtonDisabled: { opacity: 0.5 },
-  sendButtonText: { color: "#fff", fontSize: 14, fontWeight: "600" },
+  sendButtonText: { fontFamily: typography.bodySemibold, color: colors.ink, fontSize: 14 },
 });

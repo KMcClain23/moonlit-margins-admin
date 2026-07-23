@@ -10,6 +10,9 @@ import {
 } from "../lib/applicationsApi";
 import { ApiError } from "../lib/apiError";
 import type { ApplicationsStackParamList } from "../navigation/RootNavigator";
+import { colors, withAlpha } from "../theme/colors";
+import { typography } from "../theme/typography";
+import EmptyState from "../components/EmptyState";
 
 type Nav = NativeStackNavigationProp<ApplicationsStackParamList, "ApplicationsList">;
 type KindFilter = "all" | ApplicationKind;
@@ -34,6 +37,13 @@ const STATUS_LABELS: Record<Application["status"], string> = {
   in_review: "In review",
   accepted: "Accepted",
   declined: "Declined",
+};
+
+const STATUS_COLORS: Record<Application["status"], string> = {
+  pending: colors.candle.default,
+  in_review: colors.lilac.default,
+  accepted: colors.lilac.soft,
+  declined: colors.muted,
 };
 
 function formatCreatedDate(createdAt: string): string {
@@ -116,7 +126,7 @@ export default function ApplicationsListScreen() {
           ) : errorMessage ? (
             <Text style={styles.errorText}>{errorMessage}</Text>
           ) : (
-            <Text style={styles.emptyText}>No applications here.</Text>
+            <EmptyState message="No applications here." />
           )
         }
         renderItem={({ item }) => (
@@ -126,8 +136,10 @@ export default function ApplicationsListScreen() {
           >
             <View style={styles.rowHeader}>
               <Text style={styles.title}>{item.fullName}</Text>
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{STATUS_LABELS[item.status]}</Text>
+              <View style={[styles.badge, { backgroundColor: withAlpha(STATUS_COLORS[item.status], 0.15) }]}>
+                <Text style={[styles.badgeText, { color: STATUS_COLORS[item.status] }]}>
+                  {STATUS_LABELS[item.status]}
+                </Text>
               </View>
             </View>
             <Text style={styles.subtitle}>{item.email}</Text>
@@ -150,51 +162,59 @@ export default function ApplicationsListScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f5f5f7" },
+  container: { flex: 1, backgroundColor: colors.ink },
   toggleRow: { flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingTop: 12 },
   toggleChip: {
     borderWidth: 1,
-    borderColor: "#ccc",
+    borderColor: colors.hairline,
     borderRadius: 999,
     paddingVertical: 8,
     paddingHorizontal: 16,
   },
-  toggleChipActive: { backgroundColor: "#1a1a2e", borderColor: "#1a1a2e" },
-  toggleChipText: { fontSize: 13, color: "#333", fontWeight: "500" },
-  toggleChipTextActive: { color: "#fff", fontWeight: "600" },
+  toggleChipActive: { backgroundColor: colors.lilac.default, borderColor: colors.lilac.default },
+  toggleChipText: { fontFamily: typography.bodyMedium, fontSize: 13, color: colors.muted },
+  toggleChipTextActive: { fontFamily: typography.bodySemibold, color: colors.ink },
   filterRow: { flexDirection: "row", gap: 6, flexWrap: "wrap", paddingHorizontal: 16, paddingTop: 10 },
   filterChip: {
     borderWidth: 1,
-    borderColor: "#ccc",
+    borderColor: colors.hairline,
     borderRadius: 999,
     paddingVertical: 6,
     paddingHorizontal: 12,
   },
-  filterChipActive: { backgroundColor: "#e4e4ee", borderColor: "#1a1a2e" },
-  filterChipText: { fontSize: 12, color: "#555" },
-  filterChipTextActive: { color: "#1a1a2e", fontWeight: "600" },
+  filterChipActive: { backgroundColor: withAlpha(colors.lilac.default, 0.15), borderColor: colors.lilac.default },
+  filterChipText: { fontFamily: typography.body, fontSize: 12, color: colors.muted },
+  filterChipTextActive: { fontFamily: typography.bodySemibold, color: colors.lilac.default },
   listContent: { padding: 16 },
-  emptyContent: { flexGrow: 1, alignItems: "center", justifyContent: "center" },
-  emptyText: { color: "#777", fontSize: 15 },
-  errorText: { color: "#c0392b", fontSize: 15, textAlign: "center", paddingHorizontal: 24 },
+  emptyContent: { flexGrow: 1 },
+  emptyText: { fontFamily: typography.body, color: colors.muted, fontSize: 15, textAlign: "center", marginTop: 40 },
+  errorText: {
+    fontFamily: typography.body,
+    color: colors.candle.default,
+    fontSize: 15,
+    textAlign: "center",
+    paddingHorizontal: 24,
+    marginTop: 40,
+  },
   row: {
-    backgroundColor: "#fff",
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.hairline,
     borderRadius: 12,
     padding: 14,
     marginBottom: 12,
   },
   rowHeader: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 8 },
-  title: { fontSize: 16, fontWeight: "600", color: "#111", flexShrink: 1 },
-  subtitle: { fontSize: 13, color: "#666", marginTop: 2 },
-  handles: { fontSize: 12, color: "#888", marginTop: 4 },
+  title: { fontFamily: typography.bodySemibold, fontSize: 16, color: colors.parchment, flexShrink: 1 },
+  subtitle: { fontFamily: typography.body, fontSize: 13, color: colors.muted, marginTop: 2 },
+  handles: { fontFamily: typography.body, fontSize: 12, color: colors.muted, marginTop: 4 },
   badge: {
-    backgroundColor: "#eee",
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
-  badgeText: { fontSize: 11, fontWeight: "500", color: "#333" },
+  badgeText: { fontFamily: typography.mono, fontSize: 11 },
   footerRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 10 },
-  kindLabel: { fontSize: 12, color: "#1a1a2e", fontWeight: "500" },
-  createdDate: { fontSize: 12, color: "#999" },
+  kindLabel: { fontFamily: typography.mono, fontSize: 11, color: colors.lilac.soft },
+  createdDate: { fontFamily: typography.body, fontSize: 12, color: colors.muted },
 });

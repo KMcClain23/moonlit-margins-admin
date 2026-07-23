@@ -13,6 +13,8 @@ import {
   type RegistrationType,
   type TargetTier,
 } from "../lib/eventsApi";
+import { colors } from "../theme/colors";
+import { typography } from "../theme/typography";
 
 const EVENT_TYPES = Object.keys(EVENT_TYPE_LABELS) as EventType[];
 const REGISTRATION_TYPES = Object.keys(REGISTRATION_TYPE_LABELS) as RegistrationType[];
@@ -75,7 +77,13 @@ export default function EventForm({
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.label}>Title</Text>
-      <TextInput style={styles.input} value={title} onChangeText={setTitle} editable={!isSubmitting} />
+      <TextInput
+        style={styles.input}
+        value={title}
+        onChangeText={setTitle}
+        editable={!isSubmitting}
+        placeholderTextColor={colors.muted}
+      />
 
       <Text style={styles.label}>Description (optional)</Text>
       <TextInput
@@ -84,6 +92,7 @@ export default function EventForm({
         value={description}
         onChangeText={setDescription}
         editable={!isSubmitting}
+        placeholderTextColor={colors.muted}
       />
 
       <Text style={styles.label}>Type</Text>
@@ -107,7 +116,13 @@ export default function EventForm({
       </View>
 
       <Text style={styles.label}>Location (or "Virtual")</Text>
-      <TextInput style={styles.input} value={location} onChangeText={setLocation} editable={!isSubmitting} />
+      <TextInput
+        style={styles.input}
+        value={location}
+        onChangeText={setLocation}
+        editable={!isSubmitting}
+        placeholderTextColor={colors.muted}
+      />
 
       <Text style={styles.label}>Link (TikTok Live, Zoom, etc.)</Text>
       <TextInput
@@ -116,6 +131,7 @@ export default function EventForm({
         onChangeText={setLinkUrl}
         autoCapitalize="none"
         editable={!isSubmitting}
+        placeholderTextColor={colors.muted}
       />
 
       <Text style={styles.label}>Cover image URL (optional)</Text>
@@ -125,6 +141,7 @@ export default function EventForm({
         onChangeText={setCoverImageUrl}
         autoCapitalize="none"
         editable={!isSubmitting}
+        placeholderTextColor={colors.muted}
       />
 
       <Text style={styles.label}>Registration</Text>
@@ -203,7 +220,7 @@ export default function EventForm({
         disabled={!canSubmit}
       >
         {isSubmitting ? (
-          <ActivityIndicator color="#fff" />
+          <ActivityIndicator color={colors.ink} />
         ) : (
           <Text style={styles.submitButtonText}>{submitLabel}</Text>
         )}
@@ -213,56 +230,61 @@ export default function EventForm({
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 20, backgroundColor: "#fff", flexGrow: 1 },
-  label: { fontSize: 13, color: "#777", marginTop: 18, marginBottom: 6 },
+  container: { padding: 20, backgroundColor: colors.ink, flexGrow: 1 },
+  label: { fontFamily: typography.mono, fontSize: 12, color: colors.muted, marginTop: 18, marginBottom: 6 },
   input: {
     borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
+    borderColor: colors.hairline,
+    borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
+    fontFamily: typography.body,
     fontSize: 15,
+    color: colors.parchment,
+    backgroundColor: colors.surface,
   },
   multiline: { minHeight: 70, textAlignVertical: "top" },
   fieldSpacing: { marginTop: 18 },
   chipRow: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
   chip: {
     borderWidth: 1,
-    borderColor: "#ccc",
+    borderColor: colors.hairline,
     borderRadius: 999,
     paddingVertical: 8,
     paddingHorizontal: 14,
   },
-  chipActive: { backgroundColor: "#1a1a2e", borderColor: "#1a1a2e" },
-  chipText: { fontSize: 13, color: "#333" },
-  chipTextActive: { color: "#fff", fontWeight: "600" },
+  chipActive: { backgroundColor: colors.lilac.default, borderColor: colors.lilac.default },
+  chipText: { fontFamily: typography.bodyMedium, fontSize: 13, color: colors.muted },
+  chipTextActive: { fontFamily: typography.bodySemibold, color: colors.ink },
   checkboxRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 22 },
   checkbox: {
     width: 20,
     height: 20,
     borderRadius: 4,
     borderWidth: 1,
-    borderColor: "#ccc",
+    borderColor: colors.hairline,
   },
-  checkboxChecked: { backgroundColor: "#1a1a2e", borderColor: "#1a1a2e" },
-  checkboxLabel: { flex: 1, fontSize: 13, color: "#444", lineHeight: 18 },
+  checkboxChecked: { backgroundColor: colors.lilac.default, borderColor: colors.lilac.default },
+  checkboxLabel: { flex: 1, fontFamily: typography.body, fontSize: 13, color: colors.muted, lineHeight: 18 },
   tierCard: {
     marginTop: 14,
     padding: 14,
     borderRadius: 12,
-    backgroundColor: "#f5f5f7",
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    backgroundColor: colors.surface,
   },
-  tierCardLabel: { fontSize: 13, color: "#555", marginBottom: 10, lineHeight: 18 },
-  tierNote: { fontSize: 12, color: "#888", marginTop: 10, lineHeight: 17 },
-  errorText: { color: "#c0392b", fontSize: 14, marginTop: 16, textAlign: "center" },
+  tierCardLabel: { fontFamily: typography.body, fontSize: 13, color: colors.muted, marginBottom: 10, lineHeight: 18 },
+  tierNote: { fontFamily: typography.body, fontSize: 12, color: colors.muted, marginTop: 10, lineHeight: 17 },
+  errorText: { fontFamily: typography.body, color: colors.candle.default, fontSize: 14, marginTop: 16, textAlign: "center" },
   submitButton: {
-    backgroundColor: "#1a1a2e",
-    borderRadius: 8,
+    backgroundColor: colors.lilac.default,
+    borderRadius: 12,
     paddingVertical: 14,
     alignItems: "center",
     marginTop: 28,
     marginBottom: 12,
   },
   submitButtonDisabled: { opacity: 0.5 },
-  submitButtonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
+  submitButtonText: { fontFamily: typography.bodySemibold, color: colors.ink, fontSize: 16 },
 });

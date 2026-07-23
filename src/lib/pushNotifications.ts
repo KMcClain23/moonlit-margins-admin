@@ -47,16 +47,44 @@ async function pushApiRequest(path: string, method: "POST" | "DELETE", body: unk
 // banner -- without this handler they'd otherwise be silently swallowed.
 // shouldShowBanner/shouldShowList are the current SDK's actual controlling
 // fields; shouldShowAlert is deprecated (optional) but included too since
-// it's still what most guidance/tooling checks for.
+// it's still what most guidance/tooling checks for. shouldSetBadge is
+// true so a delivered notification also bumps the home-screen app icon
+// badge -- see incrementBadgeCount()/clearBadgeCount() below for the
+// actual count tracking, since this flag alone doesn't set a count.
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
     shouldShowBanner: true,
     shouldShowList: true,
     shouldPlaySound: true,
-    shouldSetBadge: false,
+    shouldSetBadge: true,
   }),
 });
+
+/** Bumps the app icon's badge count by one. Called from App.tsx's
+ * addNotificationReceivedListener whenever a notification is actually
+ * delivered while the app is running (foreground or backgrounded) --
+ * there's no server-tracked unread count this reads from, so it's a
+ * simple local increment instead. */
+export async function incrementBadgeCount(): Promise<void> {
+  try {
+    const current = await Notifications.getBadgeCountAsync();
+    await Notifications.setBadgeCountAsync(current + 1);
+  } catch (err) {
+    console.error("[push] incrementBadgeCount threw", err);
+  }
+}
+
+/** Resets the app icon's badge count to zero. Called when the person
+ * opens the Messages tab, since that's the point they've actually seen
+ * whatever was unread. */
+export async function clearBadgeCount(): Promise<void> {
+  try {
+    await Notifications.setBadgeCountAsync(0);
+  } catch (err) {
+    console.error("[push] clearBadgeCount threw", err);
+  }
+}
 
 const DEFAULT_ANDROID_CHANNEL_ID = "default";
 

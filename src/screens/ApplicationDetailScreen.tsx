@@ -11,6 +11,8 @@ import {
 } from "../lib/applicationsApi";
 import { ApiError } from "../lib/apiError";
 import type { ApplicationsStackParamList } from "../navigation/RootNavigator";
+import { colors } from "../theme/colors";
+import { typography } from "../theme/typography";
 
 type Nav = NativeStackNavigationProp<ApplicationsStackParamList, "ApplicationDetail">;
 type DetailRoute = RouteProp<ApplicationsStackParamList, "ApplicationDetail">;
@@ -115,7 +117,7 @@ export default function ApplicationDetailScreen() {
   if (isLoading && !application) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" />
+        <ActivityIndicator size="large" color={colors.lilac.default} />
       </View>
     );
   }
@@ -217,37 +219,43 @@ export default function ApplicationDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  centered: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#fff", padding: 24 },
-  container: { padding: 20, backgroundColor: "#fff", flexGrow: 1 },
-  title: { fontSize: 22, fontWeight: "700", color: "#111" },
-  subtitle: { fontSize: 14, color: "#666", marginTop: 4 },
-  handles: { fontSize: 13, color: "#888", marginTop: 4 },
+  centered: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.ink, padding: 24 },
+  container: { padding: 20, backgroundColor: colors.ink, flexGrow: 1 },
+  title: { fontFamily: typography.display, fontSize: 22, color: colors.parchment },
+  subtitle: { fontFamily: typography.body, fontSize: 14, color: colors.muted, marginTop: 4 },
+  handles: { fontFamily: typography.body, fontSize: 13, color: colors.muted, marginTop: 4 },
   metaRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     paddingVertical: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#ddd",
+    borderBottomColor: colors.hairline,
     marginTop: 12,
   },
-  metaLabel: { fontSize: 13, color: "#888" },
-  metaValue: { fontSize: 13, color: "#222", fontWeight: "500", flexShrink: 1, textAlign: "right" },
+  metaLabel: { fontFamily: typography.mono, fontSize: 12, color: colors.muted },
+  metaValue: {
+    fontFamily: typography.bodyMedium,
+    fontSize: 13,
+    color: colors.parchment,
+    flexShrink: 1,
+    textAlign: "right",
+  },
   answers: { marginTop: 20 },
   answerBlock: { marginBottom: 14 },
-  answerKey: { fontSize: 12, color: "#888", textTransform: "uppercase", letterSpacing: 0.4 },
-  answerValue: { fontSize: 14, color: "#222", marginTop: 4, lineHeight: 20 },
-  errorText: { color: "#c0392b", fontSize: 14, marginTop: 16, textAlign: "center" },
+  answerKey: { fontFamily: typography.mono, fontSize: 11, color: colors.muted, textTransform: "uppercase", letterSpacing: 0.4 },
+  answerValue: { fontFamily: typography.body, fontSize: 14, color: colors.parchment, marginTop: 4, lineHeight: 20 },
+  errorText: { fontFamily: typography.body, color: colors.candle.default, fontSize: 14, marginTop: 16, textAlign: "center" },
   buttonRow: { flexDirection: "row", gap: 8, flexWrap: "wrap", marginTop: 12 },
   actionChip: {
     borderWidth: 1,
-    borderColor: "#ccc",
+    borderColor: colors.hairline,
     borderRadius: 999,
     paddingVertical: 8,
     paddingHorizontal: 14,
   },
-  actionChipActive: { backgroundColor: "#1a1a2e", borderColor: "#1a1a2e" },
-  actionChipText: { fontSize: 13, color: "#333" },
-  actionChipTextActive: { color: "#fff", fontWeight: "600" },
+  actionChipActive: { backgroundColor: colors.lilac.default, borderColor: colors.lilac.default },
+  actionChipText: { fontFamily: typography.bodyMedium, fontSize: 13, color: colors.muted },
+  actionChipTextActive: { fontFamily: typography.bodySemibold, color: colors.ink },
   deleteButton: { marginTop: 32, alignItems: "center", paddingVertical: 10 },
-  deleteButtonText: { color: "#c0392b", fontSize: 14, fontWeight: "600" },
+  deleteButtonText: { fontFamily: typography.bodySemibold, color: colors.candle.default, fontSize: 14 },
 });

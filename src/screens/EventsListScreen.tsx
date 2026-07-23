@@ -6,6 +6,9 @@ import { useAuth } from "../lib/authStore";
 import { listEvents, tierLabel, type Event } from "../lib/eventsApi";
 import { ApiError } from "../lib/apiError";
 import type { EventsStackParamList } from "../navigation/RootNavigator";
+import { colors, withAlpha } from "../theme/colors";
+import { typography } from "../theme/typography";
+import EmptyState from "../components/EmptyState";
 
 type Nav = NativeStackNavigationProp<EventsStackParamList, "EventsList">;
 
@@ -62,7 +65,7 @@ export default function EventsListScreen() {
           ) : errorMessage ? (
             <Text style={styles.errorText}>{errorMessage}</Text>
           ) : (
-            <Text style={styles.emptyText}>No events yet.</Text>
+            <EmptyState message="No events yet." />
           )
         }
         renderItem={({ item }) => (
@@ -75,8 +78,8 @@ export default function EventsListScreen() {
             {item.status === "canceled" || item.registrationType === "ticketing" || item.isPrivate ? (
               <View style={styles.badgeRow}>
                 {item.status === "canceled" ? (
-                  <View style={styles.badge}>
-                    <Text style={styles.badgeText}>Canceled</Text>
+                  <View style={[styles.badge, styles.badgeCandle]}>
+                    <Text style={[styles.badgeText, styles.badgeCandleText]}>Canceled</Text>
                   </View>
                 ) : null}
                 {item.registrationType === "ticketing" ? (
@@ -105,27 +108,38 @@ export default function EventsListScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f5f5f7" },
+  container: { flex: 1, backgroundColor: colors.ink },
   listContent: { padding: 16 },
-  emptyContent: { flexGrow: 1, alignItems: "center", justifyContent: "center" },
-  emptyText: { color: "#777", fontSize: 15 },
-  errorText: { color: "#c0392b", fontSize: 15, textAlign: "center", paddingHorizontal: 24 },
+  emptyContent: { flexGrow: 1 },
+  emptyText: { fontFamily: typography.body, color: colors.muted, fontSize: 15, textAlign: "center", marginTop: 40 },
+  errorText: {
+    fontFamily: typography.body,
+    color: colors.candle.default,
+    fontSize: 15,
+    textAlign: "center",
+    paddingHorizontal: 24,
+    marginTop: 40,
+  },
   row: {
-    backgroundColor: "#fff",
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.hairline,
     borderRadius: 12,
     padding: 14,
     marginBottom: 12,
   },
-  title: { fontSize: 16, fontWeight: "600", color: "#111" },
-  subtitle: { fontSize: 13, color: "#666", marginTop: 2 },
+  title: { fontFamily: typography.bodySemibold, fontSize: 16, color: colors.parchment },
+  subtitle: { fontFamily: typography.body, fontSize: 13, color: colors.muted, marginTop: 2 },
   badgeRow: { flexDirection: "row", gap: 6, marginTop: 8, flexWrap: "wrap" },
   badge: {
-    backgroundColor: "#eee",
+    backgroundColor: withAlpha(colors.lilac.default, 0.15),
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
-  badgeText: { fontSize: 11, fontWeight: "500", color: "#333" },
+  badgeCandle: { backgroundColor: withAlpha(colors.candle.default, 0.15) },
+  badgeText: { fontFamily: typography.mono, fontSize: 11, color: colors.lilac.soft },
+  badgeCandleText: { color: colors.candle.soft },
   fab: {
     position: "absolute",
     right: 20,
@@ -133,7 +147,9 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: "#1a1a2e",
+    backgroundColor: colors.surfaceRaised,
+    borderWidth: 1,
+    borderColor: colors.lilac.default,
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#000",
@@ -142,5 +158,5 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 4,
   },
-  fabText: { color: "#fff", fontSize: 28, lineHeight: 30 },
+  fabText: { color: colors.lilac.default, fontSize: 28, lineHeight: 30 },
 });

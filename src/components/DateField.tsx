@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import DateTimePicker, { type DateTimePickerChangeEvent } from "@react-native-community/datetimepicker";
 import { dateToIsoDateString, isoDateStringToDate } from "../lib/dateUtils";
+import { colors } from "../theme/colors";
+import { typography } from "../theme/typography";
 
 function formatDisplayDate(date: Date): string {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -77,18 +79,19 @@ export default function DateField({
 }
 
 const styles = StyleSheet.create({
-  label: { fontSize: 13, color: "#777", marginBottom: 6 },
+  label: { fontFamily: typography.mono, fontSize: 12, color: colors.muted, marginBottom: 6 },
   row: { flexDirection: "row", alignItems: "center", gap: 8 },
   field: {
     borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
+    borderColor: colors.hairline,
+    borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 12,
+    backgroundColor: colors.surface,
   },
   fieldGrow: { flex: 1 },
-  valueText: { fontSize: 15, color: "#111" },
-  placeholderText: { fontSize: 15, color: "#999" },
+  valueText: { fontFamily: typography.body, fontSize: 15, color: colors.parchment },
+  placeholderText: { fontFamily: typography.body, fontSize: 15, color: colors.muted },
   clearButton: { paddingHorizontal: 10, paddingVertical: 12 },
-  clearButtonText: { fontSize: 13, color: "#c0392b", fontWeight: "500" },
+  clearButtonText: { fontFamily: typography.bodyMedium, fontSize: 13, color: colors.candle.default },
 });

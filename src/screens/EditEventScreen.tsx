@@ -7,6 +7,8 @@ import { updateEvent, type EventInput } from "../lib/eventsApi";
 import { ApiError } from "../lib/apiError";
 import type { EventsStackParamList } from "../navigation/RootNavigator";
 import EventForm from "../components/EventForm";
+import { colors } from "../theme/colors";
+import { typography } from "../theme/typography";
 
 type Nav = NativeStackNavigationProp<EventsStackParamList, "EditEvent">;
 type EditRoute = RouteProp<EventsStackParamList, "EditEvent">;
@@ -55,6 +57,6 @@ export default function EditEventScreen() {
 }
 
 const styles = StyleSheet.create({
-  centered: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#fff", padding: 24 },
-  blockedText: { fontSize: 15, color: "#555", textAlign: "center" },
+  centered: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.ink, padding: 24 },
+  blockedText: { fontFamily: typography.body, fontSize: 15, color: colors.muted, textAlign: "center" },
 });

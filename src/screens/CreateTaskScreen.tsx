@@ -8,6 +8,8 @@ import { listMembers, type MemberOption } from "../lib/membersApi";
 import { ApiError } from "../lib/apiError";
 import type { TasksStackParamList } from "../navigation/RootNavigator";
 import DateField from "../components/DateField";
+import { colors } from "../theme/colors";
+import { typography } from "../theme/typography";
 
 type Nav = NativeStackNavigationProp<TasksStackParamList, "CreateTask">;
 type AssignMode = "member" | "all" | "leadership";
@@ -87,7 +89,13 @@ export default function CreateTaskScreen() {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.label}>Title</Text>
-      <TextInput style={styles.input} value={title} onChangeText={setTitle} editable={!isSubmitting} />
+      <TextInput
+        style={styles.input}
+        value={title}
+        onChangeText={setTitle}
+        editable={!isSubmitting}
+        placeholderTextColor={colors.muted}
+      />
 
       <Text style={styles.label}>Description (optional)</Text>
       <TextInput
@@ -96,6 +104,7 @@ export default function CreateTaskScreen() {
         value={description}
         onChangeText={setDescription}
         editable={!isSubmitting}
+        placeholderTextColor={colors.muted}
       />
 
       <View style={styles.dueDateField}>
@@ -126,7 +135,7 @@ export default function CreateTaskScreen() {
 
       {assignMode === "member" ? (
         isLoadingMembers ? (
-          <ActivityIndicator style={styles.memberLoading} />
+          <ActivityIndicator style={styles.memberLoading} color={colors.lilac.default} />
         ) : membersError ? (
           <Text style={styles.errorText}>{membersError}</Text>
         ) : (
@@ -162,60 +171,69 @@ export default function CreateTaskScreen() {
         onPress={handleSubmit}
         disabled={!canSubmit}
       >
-        {isSubmitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitButtonText}>Create task</Text>}
+        {isSubmitting ? (
+          <ActivityIndicator color={colors.ink} />
+        ) : (
+          <Text style={styles.submitButtonText}>Create task</Text>
+        )}
       </Pressable>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  centered: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#fff", padding: 24 },
-  blockedText: { fontSize: 15, color: "#555", textAlign: "center" },
-  container: { padding: 20, backgroundColor: "#fff", flexGrow: 1 },
-  label: { fontSize: 13, color: "#777", marginTop: 18, marginBottom: 6 },
+  centered: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.ink, padding: 24 },
+  blockedText: { fontFamily: typography.body, fontSize: 15, color: colors.muted, textAlign: "center" },
+  container: { padding: 20, backgroundColor: colors.ink, flexGrow: 1 },
+  label: { fontFamily: typography.mono, fontSize: 12, color: colors.muted, marginTop: 18, marginBottom: 6 },
   input: {
     borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
+    borderColor: colors.hairline,
+    borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
+    fontFamily: typography.body,
     fontSize: 15,
+    color: colors.parchment,
+    backgroundColor: colors.surface,
   },
   multiline: { minHeight: 70, textAlignVertical: "top" },
   dueDateField: { marginTop: 18 },
   modeRow: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
   modeChip: {
     borderWidth: 1,
-    borderColor: "#ccc",
+    borderColor: colors.hairline,
     borderRadius: 999,
     paddingVertical: 8,
     paddingHorizontal: 14,
   },
-  modeChipActive: { backgroundColor: "#1a1a2e", borderColor: "#1a1a2e" },
-  modeChipText: { fontSize: 13, color: "#333" },
-  modeChipTextActive: { color: "#fff", fontWeight: "600" },
+  modeChipActive: { backgroundColor: colors.lilac.default, borderColor: colors.lilac.default },
+  modeChipText: { fontFamily: typography.bodyMedium, fontSize: 13, color: colors.muted },
+  modeChipTextActive: { fontFamily: typography.bodySemibold, color: colors.ink },
   memberLoading: { marginTop: 16 },
   memberList: { marginTop: 12 },
   memberRow: {
     paddingVertical: 12,
     paddingHorizontal: 14,
-    borderRadius: 8,
+    borderRadius: 12,
     marginBottom: 6,
-    backgroundColor: "#f5f5f7",
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    backgroundColor: colors.surface,
   },
-  memberRowActive: { backgroundColor: "#1a1a2e" },
-  memberRowText: { fontSize: 14, color: "#222" },
-  memberRowTextActive: { color: "#fff", fontWeight: "600" },
-  groupNote: { fontSize: 13, color: "#777", marginTop: 12, lineHeight: 19 },
-  errorText: { color: "#c0392b", fontSize: 14, marginTop: 16, textAlign: "center" },
+  memberRowActive: { backgroundColor: colors.lilac.default, borderColor: colors.lilac.default },
+  memberRowText: { fontFamily: typography.body, fontSize: 14, color: colors.parchment },
+  memberRowTextActive: { fontFamily: typography.bodySemibold, color: colors.ink },
+  groupNote: { fontFamily: typography.body, fontSize: 13, color: colors.muted, marginTop: 12, lineHeight: 19 },
+  errorText: { fontFamily: typography.body, color: colors.candle.default, fontSize: 14, marginTop: 16, textAlign: "center" },
   submitButton: {
-    backgroundColor: "#1a1a2e",
-    borderRadius: 8,
+    backgroundColor: colors.lilac.default,
+    borderRadius: 12,
     paddingVertical: 14,
     alignItems: "center",
     marginTop: 28,
     marginBottom: 12,
   },
   submitButtonDisabled: { opacity: 0.5 },
-  submitButtonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
+  submitButtonText: { fontFamily: typography.bodySemibold, color: colors.ink, fontSize: 16 },
 });

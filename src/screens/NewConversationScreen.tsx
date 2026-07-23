@@ -10,6 +10,8 @@ import {
 } from "../lib/messagesApi";
 import { ApiError } from "../lib/apiError";
 import type { MessagesStackParamList } from "../navigation/RootNavigator";
+import { colors } from "../theme/colors";
+import { typography } from "../theme/typography";
 
 type Nav = NativeStackNavigationProp<MessagesStackParamList, "NewConversation">;
 type ConversationKind = "direct" | "group";
@@ -116,13 +118,19 @@ export default function NewConversationScreen() {
       {type === "group" ? (
         <>
           <Text style={styles.label}>Group name (optional)</Text>
-          <TextInput style={styles.input} value={title} onChangeText={setTitle} editable={!isSubmitting} />
+          <TextInput
+            style={styles.input}
+            value={title}
+            onChangeText={setTitle}
+            editable={!isSubmitting}
+            placeholderTextColor={colors.muted}
+          />
         </>
       ) : null}
 
       <Text style={styles.label}>{type === "direct" ? "Who with" : "Who's included"}</Text>
       {isLoadingUsers ? (
-        <ActivityIndicator style={styles.usersLoading} />
+        <ActivityIndicator style={styles.usersLoading} color={colors.lilac.default} />
       ) : usersError ? (
         <Text style={styles.errorText}>{usersError}</Text>
       ) : users.length === 0 ? (
@@ -152,7 +160,7 @@ export default function NewConversationScreen() {
         disabled={!canSubmit}
       >
         {isSubmitting ? (
-          <ActivityIndicator color="#fff" />
+          <ActivityIndicator color={colors.ink} />
         ) : (
           <Text style={styles.submitButtonText}>Start conversation</Text>
         )}
@@ -162,49 +170,54 @@ export default function NewConversationScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 20, backgroundColor: "#fff", flexGrow: 1 },
-  label: { fontSize: 13, color: "#777", marginTop: 18, marginBottom: 6 },
+  container: { padding: 20, backgroundColor: colors.ink, flexGrow: 1 },
+  label: { fontFamily: typography.mono, fontSize: 12, color: colors.muted, marginTop: 18, marginBottom: 6 },
   input: {
     borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
+    borderColor: colors.hairline,
+    borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
+    fontFamily: typography.body,
     fontSize: 15,
+    color: colors.parchment,
+    backgroundColor: colors.surface,
   },
   chipRow: { flexDirection: "row", gap: 8 },
   chip: {
     borderWidth: 1,
-    borderColor: "#ccc",
+    borderColor: colors.hairline,
     borderRadius: 999,
     paddingVertical: 8,
     paddingHorizontal: 16,
   },
-  chipActive: { backgroundColor: "#1a1a2e", borderColor: "#1a1a2e" },
-  chipText: { fontSize: 13, color: "#333" },
-  chipTextActive: { color: "#fff", fontWeight: "600" },
+  chipActive: { backgroundColor: colors.lilac.default, borderColor: colors.lilac.default },
+  chipText: { fontFamily: typography.bodyMedium, fontSize: 13, color: colors.muted },
+  chipTextActive: { fontFamily: typography.bodySemibold, color: colors.ink },
   usersLoading: { marginTop: 12 },
-  emptyText: { color: "#888", fontSize: 13, marginTop: 8 },
+  emptyText: { fontFamily: typography.body, color: colors.muted, fontSize: 13, marginTop: 8 },
   userList: { marginTop: 4 },
   userRow: {
     paddingVertical: 12,
     paddingHorizontal: 14,
-    borderRadius: 8,
+    borderRadius: 12,
     marginBottom: 6,
-    backgroundColor: "#f5f5f7",
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    backgroundColor: colors.surface,
   },
-  userRowActive: { backgroundColor: "#1a1a2e" },
-  userRowText: { fontSize: 14, color: "#222" },
-  userRowTextActive: { color: "#fff", fontWeight: "600" },
-  errorText: { color: "#c0392b", fontSize: 14, marginTop: 16, textAlign: "center" },
+  userRowActive: { backgroundColor: colors.lilac.default, borderColor: colors.lilac.default },
+  userRowText: { fontFamily: typography.body, fontSize: 14, color: colors.parchment },
+  userRowTextActive: { fontFamily: typography.bodySemibold, color: colors.ink },
+  errorText: { fontFamily: typography.body, color: colors.candle.default, fontSize: 14, marginTop: 16, textAlign: "center" },
   submitButton: {
-    backgroundColor: "#1a1a2e",
-    borderRadius: 8,
+    backgroundColor: colors.lilac.default,
+    borderRadius: 12,
     paddingVertical: 14,
     alignItems: "center",
     marginTop: 28,
     marginBottom: 12,
   },
   submitButtonDisabled: { opacity: 0.5 },
-  submitButtonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
+  submitButtonText: { fontFamily: typography.bodySemibold, color: colors.ink, fontSize: 16 },
 });

@@ -3,7 +3,7 @@ import { AppState, type AppStateStatus } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import { API_BASE_URL } from "../config";
 import { ApiError } from "./apiError";
-import { setupPushNotifications, unregisterPushNotifications } from "./pushNotifications";
+import { clearBadgeCount, setupPushNotifications, unregisterPushNotifications } from "./pushNotifications";
 import { SESSION_STORAGE_KEY } from "./storageKeys";
 
 export type AdminRole = "owner" | "admin" | "editor";
@@ -116,6 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       // Never block sign-out on push-token cleanup failing.
     }
+    void clearBadgeCount();
     await clearSession();
     setSession(null);
   }, []);

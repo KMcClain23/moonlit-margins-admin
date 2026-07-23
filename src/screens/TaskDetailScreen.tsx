@@ -7,6 +7,8 @@ import { deleteTask, listTasks, respondToTask, updateTaskStatus, type Task, type
 import { ApiError } from "../lib/apiError";
 import type { TasksStackParamList } from "../navigation/RootNavigator";
 import DateField from "../components/DateField";
+import { colors } from "../theme/colors";
+import { typography } from "../theme/typography";
 
 type Nav = NativeStackNavigationProp<TasksStackParamList, "TaskDetail">;
 type DetailRoute = RouteProp<TasksStackParamList, "TaskDetail">;
@@ -123,7 +125,7 @@ export default function TaskDetailScreen() {
   if (isLoading && !task) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" />
+        <ActivityIndicator size="large" color={colors.lilac.default} />
       </View>
     );
   }
@@ -193,6 +195,7 @@ export default function TaskDetailScreen() {
               value={proposeMessage}
               onChangeText={setProposeMessage}
               editable={!isSubmitting}
+              placeholderTextColor={colors.muted}
             />
             <View style={styles.buttonRow}>
               <Pressable style={styles.primaryButton} onPress={handleSendProposal} disabled={isSubmitting}>
@@ -263,67 +266,77 @@ export default function TaskDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  centered: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#fff", padding: 24 },
-  container: { padding: 20, backgroundColor: "#fff", flexGrow: 1 },
-  title: { fontSize: 22, fontWeight: "700", color: "#111" },
-  description: { fontSize: 15, color: "#444", marginTop: 8, lineHeight: 21 },
+  centered: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.ink, padding: 24 },
+  container: { padding: 20, backgroundColor: colors.ink, flexGrow: 1 },
+  title: { fontFamily: typography.display, fontSize: 22, color: colors.parchment },
+  description: { fontFamily: typography.body, fontSize: 15, color: colors.muted, marginTop: 8, lineHeight: 21 },
   metaRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     paddingVertical: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#ddd",
+    borderBottomColor: colors.hairline,
     marginTop: 4,
   },
-  metaLabel: { fontSize: 13, color: "#888" },
-  metaValue: { fontSize: 13, color: "#222", fontWeight: "500", flexShrink: 1, textAlign: "right" },
-  errorText: { color: "#c0392b", fontSize: 14, marginTop: 16, textAlign: "center" },
+  metaLabel: { fontFamily: typography.mono, fontSize: 12, color: colors.muted },
+  metaValue: {
+    fontFamily: typography.bodyMedium,
+    fontSize: 13,
+    color: colors.parchment,
+    flexShrink: 1,
+    textAlign: "right",
+  },
+  errorText: { fontFamily: typography.body, color: colors.candle.default, fontSize: 14, marginTop: 16, textAlign: "center" },
   card: {
     marginTop: 20,
     padding: 16,
     borderRadius: 12,
-    backgroundColor: "#f5f5f7",
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    backgroundColor: colors.surface,
   },
-  cardLabel: { fontSize: 12, color: "#777", marginTop: 10, marginBottom: 4 },
+  cardLabel: { fontFamily: typography.mono, fontSize: 11, color: colors.muted, marginTop: 10, marginBottom: 4 },
   input: {
     borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
+    borderColor: colors.hairline,
+    borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
+    fontFamily: typography.body,
     fontSize: 15,
-    backgroundColor: "#fff",
+    color: colors.parchment,
+    backgroundColor: colors.surfaceRaised,
   },
   multiline: { minHeight: 70, textAlignVertical: "top" },
   buttonRow: { flexDirection: "row", alignItems: "center", gap: 16, marginTop: 20, flexWrap: "wrap" },
   primaryButton: {
-    backgroundColor: "#1a1a2e",
+    backgroundColor: colors.lilac.default,
     borderRadius: 999,
     paddingVertical: 10,
     paddingHorizontal: 18,
   },
-  primaryButtonText: { color: "#fff", fontSize: 14, fontWeight: "600" },
-  secondaryButtonText: { color: "#1a1a2e", fontSize: 14, fontWeight: "500" },
+  primaryButtonText: { fontFamily: typography.bodySemibold, color: colors.ink, fontSize: 14 },
+  secondaryButtonText: { fontFamily: typography.bodyMedium, color: colors.lilac.default, fontSize: 14 },
   statusChip: {
     borderWidth: 1,
-    borderColor: "#ccc",
+    borderColor: colors.hairline,
     borderRadius: 999,
     paddingVertical: 8,
     paddingHorizontal: 14,
   },
-  statusChipActive: { backgroundColor: "#1a1a2e", borderColor: "#1a1a2e" },
-  statusChipText: { fontSize: 13, color: "#333" },
-  statusChipTextActive: { color: "#fff", fontWeight: "600" },
+  statusChipActive: { backgroundColor: colors.lilac.default, borderColor: colors.lilac.default },
+  statusChipText: { fontFamily: typography.bodyMedium, fontSize: 13, color: colors.muted },
+  statusChipTextActive: { fontFamily: typography.bodySemibold, color: colors.ink },
   deleteButton: { marginTop: 32, alignItems: "center", paddingVertical: 10 },
-  deleteButtonText: { color: "#c0392b", fontSize: 14, fontWeight: "600" },
+  deleteButtonText: { fontFamily: typography.bodySemibold, color: colors.candle.default, fontSize: 14 },
   editButton: {
     marginTop: 20,
     alignSelf: "flex-start",
     borderWidth: 1,
-    borderColor: "#1a1a2e",
+    borderColor: colors.lilac.default,
     borderRadius: 999,
     paddingVertical: 8,
     paddingHorizontal: 18,
   },
-  editButtonText: { color: "#1a1a2e", fontSize: 14, fontWeight: "600" },
+  editButtonText: { fontFamily: typography.bodySemibold, color: colors.lilac.default, fontSize: 14 },
 });

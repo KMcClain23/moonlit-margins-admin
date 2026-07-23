@@ -16,7 +16,10 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useAuth } from "../lib/authStore";
 import { leaveConversation, listMessages, sendMessage, type Message } from "../lib/messagesApi";
 import { ApiError } from "../lib/apiError";
+import { refreshUnreadCount } from "../lib/unreadMessages";
 import type { MessagesStackParamList } from "../navigation/RootNavigator";
+import { colors } from "../theme/colors";
+import { typography } from "../theme/typography";
 
 type Nav = NativeStackNavigationProp<MessagesStackParamList, "ConversationDetail">;
 type DetailRoute = RouteProp<MessagesStackParamList, "ConversationDetail">;
@@ -85,6 +88,10 @@ export default function ConversationDetailScreen() {
       const data = await listMessages(conversationId);
       setMessages(data);
       setErrorMessage(null);
+      // Fetching messages is also what marks this conversation read
+      // server-side -- push that change to the Messages tab badge right
+      // away rather than leaving it to catch up on its own poll timer.
+      void refreshUnreadCount();
     } catch (err) {
       setErrorMessage(err instanceof ApiError ? err.message : "Could not load messages.");
     } finally {
@@ -128,7 +135,7 @@ export default function ConversationDetailScreen() {
     >
       {isLoading && messages.length === 0 ? (
         <View style={styles.centered}>
-          <ActivityIndicator size="large" />
+          <ActivityIndicator size="large" color={colors.lilac.default} />
         </View>
       ) : (
         <FlatList
@@ -160,6 +167,7 @@ export default function ConversationDetailScreen() {
         <TextInput
           style={[styles.input, styles.composeInput]}
           placeholder="Type a message…"
+          placeholderTextColor={colors.muted}
           value={composeText}
           onChangeText={setComposeText}
           editable={!isSending}
@@ -171,7 +179,7 @@ export default function ConversationDetailScreen() {
           disabled={!composeText.trim() || isSending}
         >
           {isSending ? (
-            <ActivityIndicator color="#fff" size="small" />
+            <ActivityIndicator color={colors.ink} size="small" />
           ) : (
             <Text style={styles.sendButtonText}>Send</Text>
           )}
@@ -182,49 +190,61 @@ export default function ConversationDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  headerLeaveText: { color: "#c0392b", fontSize: 14, fontWeight: "600" },
-  flex: { flex: 1, backgroundColor: "#fff" },
+  headerLeaveText: { fontFamily: typography.bodySemibold, color: colors.candle.default, fontSize: 14 },
+  flex: { flex: 1, backgroundColor: colors.ink },
   centered: { flex: 1, alignItems: "center", justifyContent: "center" },
   listContent: { padding: 16 },
   emptyContent: { flexGrow: 1, alignItems: "center", justifyContent: "center" },
-  emptyText: { color: "#888", fontSize: 14 },
-  errorText: { color: "#c0392b", fontSize: 13, textAlign: "center", paddingVertical: 6, paddingHorizontal: 16 },
+  emptyText: { fontFamily: typography.body, color: colors.muted, fontSize: 14 },
+  errorText: {
+    fontFamily: typography.body,
+    color: colors.candle.default,
+    fontSize: 13,
+    textAlign: "center",
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+  },
   messageRow: { marginBottom: 14, alignItems: "flex-start" },
   messageRowMine: { alignItems: "flex-end" },
-  messageMeta: { fontSize: 11, color: "#999", marginBottom: 3 },
+  messageMeta: { fontFamily: typography.body, fontSize: 11, color: colors.muted, marginBottom: 3 },
   bubble: {
     maxWidth: "80%",
-    backgroundColor: "#f0f0f0",
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.hairline,
     borderRadius: 14,
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
-  bubbleMine: { backgroundColor: "#1a1a2e" },
-  bubbleText: { fontSize: 14, color: "#222" },
-  bubbleTextMine: { color: "#fff" },
+  bubbleMine: { backgroundColor: colors.lilac.default, borderColor: colors.lilac.default },
+  bubbleText: { fontFamily: typography.body, fontSize: 14, color: colors.parchment },
+  bubbleTextMine: { color: colors.ink },
   composeRow: {
     flexDirection: "row",
     alignItems: "flex-end",
     gap: 8,
     padding: 12,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: "#ddd",
+    borderTopColor: colors.hairline,
   },
   input: {
     borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
+    borderColor: colors.hairline,
+    borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
+    fontFamily: typography.body,
     fontSize: 15,
+    color: colors.parchment,
+    backgroundColor: colors.surface,
   },
   composeInput: { flex: 1, minHeight: 40, maxHeight: 100 },
   sendButton: {
-    backgroundColor: "#1a1a2e",
-    borderRadius: 8,
+    backgroundColor: colors.lilac.default,
+    borderRadius: 12,
     paddingVertical: 10,
     paddingHorizontal: 16,
   },
   sendButtonDisabled: { opacity: 0.5 },
-  sendButtonText: { color: "#fff", fontSize: 14, fontWeight: "600" },
+  sendButtonText: { fontFamily: typography.bodySemibold, color: colors.ink, fontSize: 14 },
 });

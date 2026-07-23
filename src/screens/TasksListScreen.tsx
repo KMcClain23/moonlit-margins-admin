@@ -6,6 +6,9 @@ import { useAuth } from "../lib/authStore";
 import { listTasks, type Task } from "../lib/tasksApi";
 import { ApiError } from "../lib/apiError";
 import type { TasksStackParamList } from "../navigation/RootNavigator";
+import { colors, withAlpha } from "../theme/colors";
+import { typography } from "../theme/typography";
+import EmptyState from "../components/EmptyState";
 
 type Nav = NativeStackNavigationProp<TasksStackParamList, "TasksList">;
 
@@ -76,7 +79,7 @@ export default function TasksListScreen() {
           ) : errorMessage ? (
             <Text style={styles.errorText}>{errorMessage}</Text>
           ) : (
-            <Text style={styles.emptyText}>No tasks yet.</Text>
+            <EmptyState message="No tasks yet." />
           )
         }
         renderItem={({ item }) => {
@@ -93,8 +96,10 @@ export default function TasksListScreen() {
                   <Text style={styles.badgeText}>{STATUS_LABELS[item.status]}</Text>
                 </View>
                 {item.acceptanceStatus !== "accepted" ? (
-                  <View style={[styles.badge, styles.badgeMuted]}>
-                    <Text style={styles.badgeText}>{ACCEPTANCE_LABELS[item.acceptanceStatus]}</Text>
+                  <View style={[styles.badge, styles.badgeAttention]}>
+                    <Text style={[styles.badgeText, styles.badgeAttentionText]}>
+                      {ACCEPTANCE_LABELS[item.acceptanceStatus]}
+                    </Text>
                   </View>
                 ) : null}
               </View>
@@ -114,34 +119,44 @@ export default function TasksListScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f5f5f7" },
+  container: { flex: 1, backgroundColor: colors.ink },
   listContent: { padding: 16 },
-  emptyContent: { flexGrow: 1, alignItems: "center", justifyContent: "center" },
-  emptyText: { color: "#777", fontSize: 15 },
-  errorText: { color: "#c0392b", fontSize: 15, textAlign: "center", paddingHorizontal: 24 },
+  emptyContent: { flexGrow: 1 },
+  emptyText: { fontFamily: typography.body, color: colors.muted, fontSize: 15, textAlign: "center", marginTop: 40 },
+  errorText: {
+    fontFamily: typography.body,
+    color: colors.candle.default,
+    fontSize: 15,
+    textAlign: "center",
+    paddingHorizontal: 24,
+    marginTop: 40,
+  },
   row: {
-    backgroundColor: "#fff",
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.hairline,
     borderRadius: 12,
     padding: 14,
     marginBottom: 12,
-    borderLeftWidth: 4,
+    borderLeftWidth: 3,
     borderLeftColor: "transparent",
   },
   rowMine: {
-    borderLeftColor: "#1a1a2e",
+    borderLeftColor: colors.lilac.default,
   },
-  title: { fontSize: 16, fontWeight: "600", color: "#111" },
-  subtitle: { fontSize: 13, color: "#666", marginTop: 2 },
-  badgeRow: { flexDirection: "row", gap: 6, marginTop: 8 },
+  title: { fontFamily: typography.bodySemibold, fontSize: 16, color: colors.parchment },
+  subtitle: { fontFamily: typography.body, fontSize: 13, color: colors.muted, marginTop: 2 },
+  badgeRow: { flexDirection: "row", gap: 6, marginTop: 8, flexWrap: "wrap" },
   badge: {
-    backgroundColor: "#eee",
+    backgroundColor: withAlpha(colors.lilac.default, 0.15),
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
-  badgeMuted: { backgroundColor: "#fdecea" },
-  badgeText: { fontSize: 11, fontWeight: "500", color: "#333" },
-  dueDate: { fontSize: 12, color: "#888", marginTop: 8 },
+  badgeAttention: { backgroundColor: withAlpha(colors.candle.default, 0.15) },
+  badgeText: { fontFamily: typography.mono, fontSize: 11, color: colors.lilac.soft },
+  badgeAttentionText: { color: colors.candle.soft },
+  dueDate: { fontFamily: typography.body, fontSize: 12, color: colors.muted, marginTop: 8 },
   fab: {
     position: "absolute",
     right: 20,
@@ -149,7 +164,9 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: "#1a1a2e",
+    backgroundColor: colors.surfaceRaised,
+    borderWidth: 1,
+    borderColor: colors.lilac.default,
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#000",
@@ -158,5 +175,5 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 4,
   },
-  fabText: { color: "#fff", fontSize: 28, lineHeight: 30 },
+  fabText: { color: colors.lilac.default, fontSize: 28, lineHeight: 30 },
 });

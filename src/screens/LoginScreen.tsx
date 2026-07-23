@@ -1,14 +1,30 @@
 import { useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import {
+  ActivityIndicator,
+  Image,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { useAuth } from "../lib/authStore";
 import { ApiError } from "../lib/apiError";
+import { colors } from "../theme/colors";
+import { typography } from "../theme/typography";
+import Starfield from "../components/Starfield";
+
+type Field = "email" | "password";
 
 export default function LoginScreen() {
   const { login } = useAuth();
+  const { width, height } = useWindowDimensions();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [focusedField, setFocusedField] = useState<Field | null>(null);
 
   async function handleSubmit() {
     setErrorMessage(null);
@@ -26,26 +42,34 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container}>
+      <Starfield variant="dense" width={width} height={height} style={styles.starfield} />
+
+      <Image source={require("../../assets/moon-flame-emblem.png")} style={styles.emblem} resizeMode="contain" />
+
       <Text style={styles.title}>Moonlit Margins Admin</Text>
 
       <TextInput
-        style={styles.input}
+        style={[styles.input, focusedField === "email" && styles.inputFocused]}
         placeholder="Email"
-        placeholderTextColor="#999"
+        placeholderTextColor={colors.muted}
         autoCapitalize="none"
         autoCorrect={false}
         keyboardType="email-address"
         value={email}
         onChangeText={setEmail}
+        onFocus={() => setFocusedField("email")}
+        onBlur={() => setFocusedField(null)}
         editable={!isSubmitting}
       />
       <TextInput
-        style={styles.input}
+        style={[styles.input, focusedField === "password" && styles.inputFocused]}
         placeholder="Password"
-        placeholderTextColor="#999"
+        placeholderTextColor={colors.muted}
         secureTextEntry
         value={password}
         onChangeText={setPassword}
+        onFocus={() => setFocusedField("password")}
+        onBlur={() => setFocusedField(null)}
         editable={!isSubmitting}
       />
 
@@ -56,7 +80,11 @@ export default function LoginScreen() {
         onPress={handleSubmit}
         disabled={!canSubmit}
       >
-        {isSubmitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Sign in</Text>}
+        {isSubmitting ? (
+          <ActivityIndicator color={colors.ink} />
+        ) : (
+          <Text style={styles.buttonText}>Sign in</Text>
+        )}
       </Pressable>
     </View>
   );
@@ -67,31 +95,52 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     paddingHorizontal: 24,
-    backgroundColor: "#fff",
+    backgroundColor: colors.ink,
+  },
+  starfield: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  emblem: {
+    width: 96,
+    height: 96,
+    alignSelf: "center",
+    marginBottom: 20,
   },
   title: {
-    fontSize: 22,
-    fontWeight: "600",
-    marginBottom: 24,
+    fontFamily: typography.display,
+    fontSize: 24,
+    color: colors.parchment,
+    marginBottom: 28,
     textAlign: "center",
   },
   input: {
     borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
+    borderColor: colors.hairline,
+    borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
     marginBottom: 12,
+    fontFamily: typography.body,
     fontSize: 16,
+    color: colors.parchment,
+    backgroundColor: colors.surface,
+  },
+  inputFocused: {
+    borderColor: colors.lilac.default,
   },
   error: {
-    color: "#c0392b",
+    fontFamily: typography.body,
+    color: colors.candle.default,
     marginBottom: 12,
     textAlign: "center",
   },
   button: {
-    backgroundColor: "#1a1a2e",
-    borderRadius: 8,
+    backgroundColor: colors.lilac.default,
+    borderRadius: 12,
     paddingVertical: 14,
     alignItems: "center",
     marginTop: 8,
@@ -100,8 +149,8 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   buttonText: {
-    color: "#fff",
+    fontFamily: typography.bodySemibold,
+    color: colors.ink,
     fontSize: 16,
-    fontWeight: "600",
   },
 });

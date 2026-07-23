@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import DateTimePicker, { type DateTimePickerChangeEvent } from "@react-native-community/datetimepicker";
+import { colors } from "../theme/colors";
+import { typography } from "../theme/typography";
 
 function formatDisplayDateTime(date: Date): string {
   return date.toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" });
@@ -114,14 +116,15 @@ export default function DateTimeField({
 }
 
 const styles = StyleSheet.create({
-  label: { fontSize: 13, color: "#777", marginBottom: 6 },
+  label: { fontFamily: typography.mono, fontSize: 12, color: colors.muted, marginBottom: 6 },
   field: {
     borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
+    borderColor: colors.hairline,
+    borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 12,
+    backgroundColor: colors.surface,
   },
-  valueText: { fontSize: 15, color: "#111" },
-  placeholderText: { fontSize: 15, color: "#999" },
+  valueText: { fontFamily: typography.body, fontSize: 15, color: colors.parchment },
+  placeholderText: { fontFamily: typography.body, fontSize: 15, color: colors.muted },
 });

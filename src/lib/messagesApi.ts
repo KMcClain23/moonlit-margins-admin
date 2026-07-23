@@ -11,6 +11,7 @@ export interface Conversation {
   type: ConversationType;
   title: string;
   createdAt: string;
+  unreadCount: number;
 }
 
 export interface Message {

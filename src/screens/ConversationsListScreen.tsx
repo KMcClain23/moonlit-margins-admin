@@ -4,7 +4,12 @@ import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { leaveConversation, listConversations, type Conversation } from "../lib/messagesApi";
 import { ApiError } from "../lib/apiError";
+import { clearBadgeCount } from "../lib/pushNotifications";
+import { setUnreadCount } from "../lib/unreadMessages";
 import type { MessagesStackParamList } from "../navigation/RootNavigator";
+import { colors } from "../theme/colors";
+import { typography } from "../theme/typography";
+import EmptyState from "../components/EmptyState";
 
 type Nav = NativeStackNavigationProp<MessagesStackParamList, "ConversationsList">;
 
@@ -24,7 +29,12 @@ export default function ConversationsListScreen() {
     }
     setErrorMessage(null);
     try {
-      setConversations(await listConversations());
+      const data = await listConversations();
+      setConversations(data);
+      // Already have the full, fresh list here -- push the total straight
+      // to the Messages tab badge instead of making it wait for its own
+      // next poll (or redundantly re-fetching the same data itself).
+      setUnreadCount(data.reduce((sum, c) => sum + c.unreadCount, 0));
     } catch (err) {
       setErrorMessage(err instanceof ApiError ? err.message : "Could not load conversations.");
     } finally {
@@ -36,6 +46,10 @@ export default function ConversationsListScreen() {
   useFocusEffect(
     useCallback(() => {
       load(false);
+      // Landing on this screen is the signal that whatever was unread has
+      // now been seen -- there's no server-tracked unread count to base
+      // this on, so it's a simple "seen the list" reset.
+      void clearBadgeCount();
     }, [load])
   );
 
@@ -81,22 +95,32 @@ export default function ConversationsListScreen() {
           ) : errorMessage ? (
             <Text style={styles.errorText}>{errorMessage}</Text>
           ) : (
-            <Text style={styles.emptyText}>No conversations yet.</Text>
+            <EmptyState message="No conversations yet." />
           )
         }
-        renderItem={({ item }) => (
-          <Pressable
-            style={styles.row}
-            onPress={() => navigation.navigate("ConversationDetail", { conversationId: item.id, title: item.title })}
-            onLongPress={() => confirmLeave(item)}
-            disabled={leavingId === item.id}
-          >
-            <Text style={styles.title}>
-              {item.title}
-              {item.type === "group" ? <Text style={styles.groupBadge}>  Group</Text> : null}
-            </Text>
-          </Pressable>
-        )}
+        renderItem={({ item }) => {
+          const hasUnread = item.unreadCount > 0;
+          return (
+            <Pressable
+              style={styles.row}
+              onPress={() =>
+                navigation.navigate("ConversationDetail", { conversationId: item.id, title: item.title })
+              }
+              onLongPress={() => confirmLeave(item)}
+              disabled={leavingId === item.id}
+            >
+              <Text style={[styles.title, hasUnread && styles.titleUnread]}>
+                {item.title}
+                {item.type === "group" ? <Text style={styles.groupBadge}>  Group</Text> : null}
+              </Text>
+              {hasUnread ? (
+                <View style={styles.unreadBadge}>
+                  <Text style={styles.unreadBadgeText}>{item.unreadCount > 99 ? "99+" : item.unreadCount}</Text>
+                </View>
+              ) : null}
+            </Pressable>
+          );
+        }}
       />
 
       <Pressable style={styles.fab} onPress={() => navigation.navigate("NewConversation")}>
@@ -107,26 +131,51 @@ export default function ConversationsListScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f5f5f7" },
+  container: { flex: 1, backgroundColor: colors.ink },
   listContent: { padding: 16 },
-  emptyContent: { flexGrow: 1, alignItems: "center", justifyContent: "center" },
-  emptyText: { color: "#777", fontSize: 15 },
-  errorText: { color: "#c0392b", fontSize: 15, textAlign: "center", paddingHorizontal: 24 },
+  emptyContent: { flexGrow: 1 },
+  emptyText: { fontFamily: typography.body, color: colors.muted, fontSize: 15, textAlign: "center", marginTop: 40 },
+  errorText: {
+    fontFamily: typography.body,
+    color: colors.candle.default,
+    fontSize: 15,
+    textAlign: "center",
+    paddingHorizontal: 24,
+    marginTop: 40,
+  },
   inlineErrorText: {
-    color: "#c0392b",
+    fontFamily: typography.body,
+    color: colors.candle.default,
     fontSize: 13,
     textAlign: "center",
     paddingTop: 12,
     paddingHorizontal: 16,
   },
   row: {
-    backgroundColor: "#fff",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.hairline,
     borderRadius: 12,
     padding: 14,
     marginBottom: 12,
   },
-  title: { fontSize: 16, fontWeight: "600", color: "#111" },
-  groupBadge: { fontSize: 11, fontWeight: "600", color: "#6c63d1" },
+  title: { flex: 1, fontFamily: typography.bodySemibold, fontSize: 16, color: colors.parchment },
+  titleUnread: { fontFamily: typography.bodyBold },
+  groupBadge: { fontFamily: typography.mono, fontSize: 11, color: colors.lilac.soft },
+  unreadBadge: {
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    paddingHorizontal: 6,
+    backgroundColor: colors.candle.default,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  unreadBadgeText: { fontFamily: typography.bodySemibold, color: colors.ink, fontSize: 12 },
   fab: {
     position: "absolute",
     right: 20,
@@ -134,7 +183,9 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: "#1a1a2e",
+    backgroundColor: colors.surfaceRaised,
+    borderWidth: 1,
+    borderColor: colors.lilac.default,
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#000",
@@ -143,5 +194,5 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 4,
   },
-  fabText: { color: "#fff", fontSize: 28, lineHeight: 30 },
+  fabText: { color: colors.lilac.default, fontSize: 28, lineHeight: 30 },
 });

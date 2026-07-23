@@ -1,4 +1,6 @@
 import { StyleSheet, Text, View } from "react-native";
+import { colors } from "../theme/colors";
+import { typography } from "../theme/typography";
 
 export default function ChangePasswordScreen() {
   return (
@@ -24,17 +26,19 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     paddingHorizontal: 24,
-    backgroundColor: "#fff",
+    backgroundColor: colors.ink,
   },
   title: {
+    fontFamily: typography.display,
     fontSize: 20,
-    fontWeight: "600",
+    color: colors.parchment,
     marginBottom: 12,
     textAlign: "center",
   },
   body: {
+    fontFamily: typography.body,
     fontSize: 15,
-    color: "#555",
+    color: colors.muted,
     textAlign: "center",
     lineHeight: 22,
   },

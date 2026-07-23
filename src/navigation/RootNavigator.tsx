@@ -2,8 +2,11 @@ import type { ComponentProps } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import type { Theme } from "@react-navigation/native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useAuth } from "../lib/authStore";
+import { colors } from "../theme/colors";
+import { useUnreadMessagesCount } from "../lib/unreadMessages";
 import LoginScreen from "../screens/LoginScreen";
 import ChangePasswordScreen from "../screens/ChangePasswordScreen";
 import TasksListScreen from "../screens/TasksListScreen";
@@ -51,6 +54,30 @@ export type EventsStackParamList = {
   EditEvent: { event: Event };
 };
 
+// Retheme's every default header/tab bar to match the web admin's dark
+// design system, without touching each screen individually. Built here
+// since this is where the app's navigators are defined, but actually
+// applied via <NavigationContainer theme={navigationTheme}> in App.tsx --
+// that's where NavigationContainer itself is instantiated, one level up
+// from this file.
+export const navigationTheme: Theme = {
+  dark: true,
+  colors: {
+    primary: colors.lilac.default,
+    background: colors.ink,
+    card: colors.surface,
+    text: colors.parchment,
+    border: colors.hairline,
+    notification: colors.candle.default,
+  },
+  fonts: {
+    regular: { fontFamily: "Manrope_400Regular", fontWeight: "400" },
+    medium: { fontFamily: "Manrope_500Medium", fontWeight: "500" },
+    bold: { fontFamily: "Manrope_600SemiBold", fontWeight: "600" },
+    heavy: { fontFamily: "Manrope_700Bold", fontWeight: "700" },
+  },
+};
+
 const AuthStack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 const MessagesStack = createNativeStackNavigator<MessagesStackParamList>();
@@ -61,7 +88,7 @@ const EventsStack = createNativeStackNavigator<EventsStackParamList>();
 function LoadingScreen() {
   return (
     <View style={styles.centered}>
-      <ActivityIndicator size="large" />
+      <ActivityIndicator size="large" color={colors.lilac.default} />
     </View>
   );
 }
@@ -141,7 +168,18 @@ const TAB_ICONS: Record<string, { focused: IoniconName; unfocused: IoniconName }
   Settings: { focused: "settings", unfocused: "settings-outline" },
 };
 
+// Polls independently of whichever tab is actually focused, since the
+// badge needs to reflect unread state even while looking at Tasks/
+// Events/etc. -- this is only the fallback cadence for changes this app
+// instance didn't cause itself; anything that marks a conversation read
+// locally (ConversationDetailScreen) or refetches the list
+// (ConversationsListScreen) pushes an immediate update via
+// refreshUnreadCount() instead of waiting for this to tick.
+const UNREAD_POLL_INTERVAL_MS = 20000;
+
 function MainTabs() {
+  const unreadCount = useUnreadMessagesCount(UNREAD_POLL_INTERVAL_MS);
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -150,12 +188,22 @@ function MainTabs() {
           const name: IoniconName = icon ? (focused ? icon.focused : icon.unfocused) : "ellipse-outline";
           return <Ionicons name={name} size={size} color={color} />;
         },
+        tabBarActiveTintColor: colors.lilac.default,
+        tabBarInactiveTintColor: colors.muted,
       })}
     >
       {/* Nested stack owns its own per-screen headers -- headerShown:false
           here stops the tab navigator from also rendering its own header
           on top of them. */}
-      <Tab.Screen name="Messages" component={MessagesNavigator} options={{ headerShown: false }} />
+      <Tab.Screen
+        name="Messages"
+        component={MessagesNavigator}
+        options={{
+          headerShown: false,
+          tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
+          tabBarBadgeStyle: { backgroundColor: colors.candle.default },
+        }}
+      />
       <Tab.Screen name="Tasks" component={TasksNavigator} options={{ headerShown: false }} />
       <Tab.Screen name="Events" component={EventsNavigator} options={{ headerShown: false }} />
       <Tab.Screen name="Applications" component={ApplicationsNavigator} options={{ headerShown: false }} />
@@ -198,6 +246,6 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#fff",
+    backgroundColor: colors.ink,
   },
 });
