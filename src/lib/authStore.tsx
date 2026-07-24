@@ -4,6 +4,7 @@ import * as SecureStore from "expo-secure-store";
 import { API_BASE_URL } from "../config";
 import { ApiError } from "./apiError";
 import { clearBadgeCount, setupPushNotifications, unregisterPushNotifications } from "./pushNotifications";
+import { registerQuickActions } from "./quickActions";
 import { SESSION_STORAGE_KEY } from "./storageKeys";
 
 export type AdminRole = "owner" | "admin" | "editor";
@@ -108,6 +109,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // away from the login screen. setupPushNotifications() is already
     // fully best-effort internally (see pushNotifications.ts).
     void setupPushNotifications();
+
+    // Re-asserts the same quick-action list App.tsx already registered
+    // at startup -- a no-op today (see quickActions.ts), but keeps this
+    // call site in place for if the list ever needs to vary per-session
+    // in the future, in case a different admin with different
+    // permissions has since logged into this same device.
+    void registerQuickActions();
   }, []);
 
   const logout = useCallback(async () => {

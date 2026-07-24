@@ -1,4 +1,5 @@
 import { apiFetch } from "./api";
+import { withCache, type CachedResult } from "./offlineCache";
 
 export type ApplicationKind = "member" | "interview" | "collab";
 export type ApplicationStatus = "pending" | "in_review" | "accepted" | "declined";
@@ -20,10 +21,12 @@ export interface Application {
 export async function listApplications(
   kind: "all" | ApplicationKind = "all",
   view: ApplicationView = "active"
-): Promise<Application[]> {
-  const params = new URLSearchParams({ kind, view });
-  const data = await apiFetch<{ applications: Application[] }>(`/api/admin/applications?${params.toString()}`);
-  return data.applications;
+): Promise<CachedResult<Application[]>> {
+  return withCache(`applications:${kind}:${view}`, async () => {
+    const params = new URLSearchParams({ kind, view });
+    const data = await apiFetch<{ applications: Application[] }>(`/api/admin/applications?${params.toString()}`);
+    return data.applications;
+  });
 }
 
 export async function updateApplicationStatus(

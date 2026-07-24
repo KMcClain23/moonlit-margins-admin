@@ -1,14 +1,6 @@
 import { useState } from "react";
-import {
-  ActivityIndicator,
-  Image,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  useWindowDimensions,
-  View,
-} from "react-native";
+import { ActivityIndicator, Image, Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useAuth } from "../lib/authStore";
 import { ApiError } from "../lib/apiError";
 import { colors } from "../theme/colors";
@@ -41,61 +33,67 @@ export default function LoginScreen() {
   const canSubmit = email.trim().length > 0 && password.length > 0 && !isSubmitting;
 
   return (
-    <View style={styles.container}>
+    <View style={styles.root}>
+      {/* Fixed backdrop, deliberately a sibling of the scroll view rather
+          than inside its content -- if it were a scrollable child it would
+          scroll (and get keyboard-avoidance-shifted) along with the form
+          instead of staying put behind it. */}
       <Starfield variant="dense" width={width} height={height} style={styles.starfield} />
 
-      <Image source={require("../../assets/moon-flame-emblem.png")} style={styles.emblem} resizeMode="contain" />
+      <KeyboardAwareScrollView contentContainerStyle={styles.container} bottomOffset={20}>
+        <Image source={require("../../assets/moon-flame-emblem.png")} style={styles.emblem} resizeMode="contain" />
 
-      <Text style={styles.title}>Moonlit Margins Admin</Text>
+        <Text style={styles.title}>Moonlit Margins Admin</Text>
 
-      <TextInput
-        style={[styles.input, focusedField === "email" && styles.inputFocused]}
-        placeholder="Email"
-        placeholderTextColor={colors.muted}
-        autoCapitalize="none"
-        autoCorrect={false}
-        keyboardType="email-address"
-        value={email}
-        onChangeText={setEmail}
-        onFocus={() => setFocusedField("email")}
-        onBlur={() => setFocusedField(null)}
-        editable={!isSubmitting}
-      />
-      <TextInput
-        style={[styles.input, focusedField === "password" && styles.inputFocused]}
-        placeholder="Password"
-        placeholderTextColor={colors.muted}
-        secureTextEntry
-        value={password}
-        onChangeText={setPassword}
-        onFocus={() => setFocusedField("password")}
-        onBlur={() => setFocusedField(null)}
-        editable={!isSubmitting}
-      />
+        <TextInput
+          style={[styles.input, focusedField === "email" && styles.inputFocused]}
+          placeholder="Email"
+          placeholderTextColor={colors.muted}
+          autoCapitalize="none"
+          autoCorrect={false}
+          keyboardType="email-address"
+          value={email}
+          onChangeText={setEmail}
+          onFocus={() => setFocusedField("email")}
+          onBlur={() => setFocusedField(null)}
+          editable={!isSubmitting}
+        />
+        <TextInput
+          style={[styles.input, focusedField === "password" && styles.inputFocused]}
+          placeholder="Password"
+          placeholderTextColor={colors.muted}
+          secureTextEntry
+          value={password}
+          onChangeText={setPassword}
+          onFocus={() => setFocusedField("password")}
+          onBlur={() => setFocusedField(null)}
+          editable={!isSubmitting}
+        />
 
-      {errorMessage ? <Text style={styles.error}>{errorMessage}</Text> : null}
+        {errorMessage ? <Text style={styles.error}>{errorMessage}</Text> : null}
 
-      <Pressable
-        style={[styles.button, !canSubmit && styles.buttonDisabled]}
-        onPress={handleSubmit}
-        disabled={!canSubmit}
-      >
-        {isSubmitting ? (
-          <ActivityIndicator color={colors.ink} />
-        ) : (
-          <Text style={styles.buttonText}>Sign in</Text>
-        )}
-      </Pressable>
+        <Pressable
+          style={[styles.button, !canSubmit && styles.buttonDisabled]}
+          onPress={handleSubmit}
+          disabled={!canSubmit}
+        >
+          {isSubmitting ? (
+            <ActivityIndicator color={colors.ink} />
+          ) : (
+            <Text style={styles.buttonText}>Sign in</Text>
+          )}
+        </Pressable>
+      </KeyboardAwareScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.ink },
   container: {
-    flex: 1,
+    flexGrow: 1,
     justifyContent: "center",
     paddingHorizontal: 24,
-    backgroundColor: colors.ink,
   },
   starfield: {
     position: "absolute",

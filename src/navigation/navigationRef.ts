@@ -1,11 +1,16 @@
 import { createNavigationContainerRef, type NavigatorScreenParams } from "@react-navigation/native";
-import type { MessagesStackParamList } from "./RootNavigator";
+import type { EventsStackParamList, MessagesStackParamList, SettingsStackParamList, TasksStackParamList } from "./RootNavigator";
+import type { AdminSession } from "../lib/authStore";
+import type { ShortcutActionId } from "../lib/quickActions";
 
-// Only the one tab route this file actually needs to address is typed in
+// Only the tab routes this file actually needs to address are typed in
 // detail -- the rest of MainTabs' Tab.Navigator is untyped today, so this
 // intentionally doesn't try to fully mirror it.
 type RootTabParamList = {
   Messages: NavigatorScreenParams<MessagesStackParamList>;
+  Tasks: NavigatorScreenParams<TasksStackParamList>;
+  Events: NavigatorScreenParams<EventsStackParamList>;
+  Settings: NavigatorScreenParams<SettingsStackParamList>;
 };
 
 /**
@@ -75,4 +80,82 @@ export function flushPendingNavigation(): void {
   const conversationId = pendingConversationId;
   pendingConversationId = null;
   navigate(conversationId);
+}
+
+// A tapped app shortcut that arrived before the container was ready --
+// same cold-start race as pendingConversationId above, queued the same
+// way. The session has to be captured alongside the action id here (not
+// re-read later) since flushPendingShortcutAction() has no other way to
+// get at "whatever the session was when this was queued."
+let pendingShortcutAction: ShortcutActionId | null = null;
+let pendingShortcutSession: AdminSession | null = null;
+
+// The single place that actually resolves "which screen does this
+// shortcut go to," gated by the session's permissions at the moment it's
+// tapped -- shortcuts are registered generically (see quickActions.ts)
+// since the OS can offer one before the app, let alone its session
+// state, has loaded, so the permission check has to happen here instead
+// of at registration time. Falls back to the always-accessible list
+// screen rather than the gated create screen, matching every create
+// screen's own belt-and-suspenders session check (e.g. CreateEventScreen).
+function resolveShortcutNavigation(actionId: ShortcutActionId, session: AdminSession): void {
+  switch (actionId) {
+    case "new-task":
+      if (session.canAssignTasks) {
+        navigationRef.navigate("Tasks", { screen: "CreateTask" });
+      } else {
+        navigationRef.navigate("Tasks", { screen: "TasksList" });
+      }
+      return;
+    case "new-message":
+      navigationRef.navigate("Messages", { screen: "NewConversation" });
+      return;
+    case "new-event":
+      if (session.sections.includes("events")) {
+        navigationRef.navigate("Events", { screen: "CreateEvent" });
+      } else {
+        navigationRef.navigate("Events", { screen: "EventsList" });
+      }
+      return;
+    case "new-memory":
+      if (session.sections.includes("memories")) {
+        navigationRef.navigate("Settings", { screen: "Memories", params: { screen: "CreateMemory" } });
+      } else {
+        navigationRef.navigate("Settings", { screen: "Memories" });
+      }
+      return;
+  }
+}
+
+/**
+ * Called whenever a quick action fires, cold start or already running.
+ * The caller (RootNavigator) is responsible for waiting until the
+ * session has actually finished loading before calling this -- a null
+ * session here is treated as "genuinely signed out," not "still
+ * loading," and the tap is dropped rather than queued indefinitely (the
+ * same choice flushPendingNavigation makes for a notification tap that
+ * arrives while signed out).
+ */
+export function navigateForQuickAction(actionId: ShortcutActionId, session: AdminSession | null): void {
+  if (!session) return;
+  if (!navigationRef.isReady()) {
+    pendingShortcutAction = actionId;
+    pendingShortcutSession = session;
+    return;
+  }
+  resolveShortcutNavigation(actionId, session);
+}
+
+/**
+ * Delivers a queued quick action once the container becomes ready --
+ * mirrors flushPendingNavigation, called from the same
+ * <NavigationContainer onReady={...}> in App.tsx.
+ */
+export function flushPendingShortcutAction(): void {
+  if (!pendingShortcutAction || !pendingShortcutSession) return;
+  const actionId = pendingShortcutAction;
+  const session = pendingShortcutSession;
+  pendingShortcutAction = null;
+  pendingShortcutSession = null;
+  resolveShortcutNavigation(actionId, session);
 }

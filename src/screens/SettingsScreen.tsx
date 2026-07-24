@@ -1,9 +1,22 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useAuth, type AdminRole } from "../lib/authStore";
 import { getMe } from "../lib/authApi";
+import {
+  authenticateWithBiometrics,
+  isBiometricAvailable,
+  isBiometricLockEnabled,
+  setBiometricLockEnabled,
+} from "../lib/biometricAuth";
+import { selection } from "../lib/haptics";
+import type { SettingsStackParamList } from "../navigation/RootNavigator";
 import { colors } from "../theme/colors";
 import { typography } from "../theme/typography";
+
+type Nav = NativeStackNavigationProp<SettingsStackParamList, "SettingsHome">;
 
 const ROLE_LABELS: Record<AdminRole, string> = {
   owner: "Owner",
@@ -20,9 +33,12 @@ function getInitials(fullName: string): string {
 }
 
 export default function SettingsScreen() {
+  const navigation = useNavigation<Nav>();
   const { session, logout } = useAuth();
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [isLoadingPhoto, setIsLoadingPhoto] = useState(true);
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometricLockOn, setBiometricLockOn] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -42,6 +58,41 @@ export default function SettingsScreen() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    // Capability check is device-level, not session-level -- devices with
+    // no hardware or nothing enrolled never see this toggle at all rather
+    // than a disabled/grayed-out one.
+    Promise.all([isBiometricAvailable(), isBiometricLockEnabled()]).then(([available, enabled]) => {
+      if (cancelled) return;
+      setBiometricAvailable(available);
+      setBiometricLockOn(enabled);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function handleBiometricLockToggle(next: boolean) {
+    if (!next) {
+      // Turning off needs no confirmation -- only enabling a lock you
+      // might not be able to pass is the risky direction.
+      selection();
+      setBiometricLockOn(false);
+      await setBiometricLockEnabled(false);
+      return;
+    }
+
+    selection();
+    const success = await authenticateWithBiometrics();
+    if (!success) {
+      // Switch snaps back to off since nothing was ever persisted.
+      return;
+    }
+    setBiometricLockOn(true);
+    await setBiometricLockEnabled(true);
+  }
 
   function confirmLogout() {
     Alert.alert("Log out?", "You'll need to sign in again to keep using the app.", [
@@ -75,6 +126,44 @@ export default function SettingsScreen() {
             </View>
           </View>
         </View>
+
+        {session?.sections.includes("members") ? (
+          <Pressable style={styles.menuRow} onPress={() => navigation.navigate("Members")}>
+            <Ionicons name="people-outline" size={20} color={colors.lilac.default} />
+            <Text style={styles.menuRowText}>Members</Text>
+            <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+          </Pressable>
+        ) : null}
+
+        {session?.sections.includes("memories") ? (
+          <Pressable style={styles.menuRow} onPress={() => navigation.navigate("Memories")}>
+            <Ionicons name="images-outline" size={20} color={colors.lilac.default} />
+            <Text style={styles.menuRowText}>Memories</Text>
+            <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+          </Pressable>
+        ) : null}
+
+        <Pressable
+          style={styles.menuRow}
+          onPress={() => navigation.navigate("MessageSettings")}
+        >
+          <Ionicons name="notifications-outline" size={20} color={colors.lilac.default} />
+          <Text style={styles.menuRowText}>Message Notifications</Text>
+          <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+        </Pressable>
+
+        {biometricAvailable ? (
+          <View style={styles.toggleRow}>
+            <Ionicons name="finger-print-outline" size={20} color={colors.lilac.default} />
+            <Text style={styles.menuRowText}>Require Face ID / Fingerprint to open app</Text>
+            <Switch
+              value={biometricLockOn}
+              onValueChange={(next) => void handleBiometricLockToggle(next)}
+              trackColor={{ false: colors.surfaceRaised, true: colors.lilac.default }}
+              thumbColor={colors.parchment}
+            />
+          </View>
+        ) : null}
 
         <Pressable style={styles.logoutButton} onPress={confirmLogout}>
           <Text style={styles.logoutButtonText}>Log out</Text>
@@ -124,6 +213,31 @@ const styles = StyleSheet.create({
   profileText: { flexShrink: 1 },
   name: { fontFamily: typography.display, fontSize: 20, color: colors.parchment },
   role: { fontFamily: typography.mono, fontSize: 12, color: colors.lilac.soft, marginTop: 6 },
+  menuRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
+  menuRowText: { flex: 1, fontFamily: typography.bodySemibold, fontSize: 15, color: colors.parchment },
+  toggleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
   logoutButton: {
     borderWidth: 1,
     borderColor: colors.candle.default,

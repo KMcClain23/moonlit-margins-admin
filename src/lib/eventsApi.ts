@@ -1,4 +1,5 @@
 import { apiFetch } from "./api";
+import { withCache, type CachedResult } from "./offlineCache";
 
 export type EventType =
   | "reading_sprint"
@@ -45,6 +46,12 @@ export function tierLabel(tier: string): string {
   return (TIER_LABELS as Record<string, string>)[tier] ?? tier;
 }
 
+/** Shared by EventsListScreen and EventDetailScreen -- both previously
+ * defined this identically inline. */
+export function formatEventDateTime(value: string): string {
+  return new Date(value).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" });
+}
+
 /** Matches GET /api/admin/events's per-event shape exactly (camelCase). */
 export interface Event {
   id: string;
@@ -62,9 +69,11 @@ export interface Event {
   slug: string | null;
 }
 
-export async function listEvents(): Promise<Event[]> {
-  const data = await apiFetch<{ events: Event[] }>("/api/admin/events");
-  return data.events;
+export async function listEvents(): Promise<CachedResult<Event[]>> {
+  return withCache("events", async () => {
+    const data = await apiFetch<{ events: Event[] }>("/api/admin/events");
+    return data.events;
+  });
 }
 
 /**

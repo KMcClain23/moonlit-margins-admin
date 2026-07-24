@@ -1,7 +1,11 @@
 import { useCallback, useEffect } from "react";
+import { StyleSheet } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { KeyboardProvider } from "react-native-keyboard-controller";
+import NetInfo from "@react-native-community/netinfo";
 import * as Notifications from "expo-notifications";
 import * as SplashScreen from "expo-splash-screen";
 import { useFonts } from "expo-font";
@@ -19,9 +23,21 @@ import { Manrope_600SemiBold } from "@expo-google-fonts/manrope/600SemiBold";
 import { Manrope_700Bold } from "@expo-google-fonts/manrope/700Bold";
 import { IBMPlexMono_500Medium } from "@expo-google-fonts/ibm-plex-mono/500Medium";
 import { AuthProvider } from "./src/lib/authStore";
+import { ToastProvider } from "./src/lib/toastStore";
 import RootNavigator, { navigationTheme } from "./src/navigation/RootNavigator";
-import { navigationRef, navigateToConversation, flushPendingNavigation } from "./src/navigation/navigationRef";
-import { ensureAndroidNotificationChannel, incrementBadgeCount } from "./src/lib/pushNotifications";
+import {
+  navigationRef,
+  navigateToConversation,
+  flushPendingNavigation,
+  flushPendingShortcutAction,
+} from "./src/navigation/navigationRef";
+import {
+  ensureAndroidNotificationChannel,
+  ensureMessageNotificationChannels,
+  incrementBadgeCount,
+} from "./src/lib/pushNotifications";
+import { registerQuickActions } from "./src/lib/quickActions";
+import { flushMessageQueue } from "./src/lib/messageQueue";
 
 // Keeps the native splash screen visible until fonts finish loading, so
 // there's no flash of unstyled (system-font) text on launch.
@@ -35,10 +51,44 @@ function readConversationId(data: Record<string, unknown> | undefined): string |
 // Runs unconditionally at app startup, independent of login state -- a
 // returning user's session restores without ever going through
 // pushNotifications.ts's login/foreground registration flow in this
-// launch, but the channel still needs to exist before any push arrives.
+// launch, but the channels still need to exist before any push arrives.
+// Message Settings' four sound/vibration variants are pre-created here too,
+// for the same reason -- registration itself only ever picks an id among
+// channels that already exist, it never creates one.
 function useAndroidNotificationChannel() {
   useEffect(() => {
     void ensureAndroidNotificationChannel();
+    void ensureMessageNotificationChannels();
+  }, []);
+}
+
+// Same reasoning as useAndroidNotificationChannel above -- registers the
+// home-screen quick actions unconditionally, independent of login state,
+// so a device that's never logged in still gets them on long-press.
+// authStore.tsx's login() re-registers the same list afterward too (see
+// quickActions.ts for why that's not currently a no-op-only formality).
+function useAppShortcuts() {
+  useEffect(() => {
+    void registerQuickActions();
+  }, []);
+}
+
+// Flushes the ENTIRE outgoing-message queue (every conversation, not
+// just whichever one happens to be open) any time NetInfo reports a
+// connected state -- covers both a genuine offline->online transition
+// and app startup already-online with a queue left over from last time.
+// flushMessageQueue() is a cheap no-op when the queue is empty, so
+// there's no need to track the previous connectivity state just to
+// avoid calling it redundantly on other 'change' events that don't
+// actually flip isConnected.
+function useMessageQueueFlush() {
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener((state) => {
+      if (state.isConnected === true) {
+        void flushMessageQueue();
+      }
+    });
+    return unsubscribe;
   }, []);
 }
 
@@ -106,6 +156,8 @@ export default function App() {
   });
 
   useAndroidNotificationChannel();
+  useAppShortcuts();
+  useMessageQueueFlush();
   useNotificationTapNavigation();
   useNotificationReceivedLogging();
 
@@ -123,13 +175,34 @@ export default function App() {
   }
 
   return (
-    <SafeAreaProvider onLayout={onLayoutRootView}>
-      <AuthProvider>
-        <NavigationContainer ref={navigationRef} onReady={flushPendingNavigation} theme={navigationTheme}>
-          <RootNavigator />
-        </NavigationContainer>
-        <StatusBar style="light" />
-      </AuthProvider>
-    </SafeAreaProvider>
+    // Must be the outermost wrapper -- every gesture handler (including
+    // SwipeableConversationRow's Gesture.Pan) resolves its native view
+    // relative to this root, so anything rendered outside it (modals,
+    // the whole app included) can't recognize gestures.
+    <GestureHandlerRootView style={styles.gestureRoot}>
+      <KeyboardProvider>
+        <SafeAreaProvider onLayout={onLayoutRootView}>
+          <ToastProvider>
+            <AuthProvider>
+              <NavigationContainer
+                ref={navigationRef}
+                onReady={() => {
+                  flushPendingNavigation();
+                  flushPendingShortcutAction();
+                }}
+                theme={navigationTheme}
+              >
+                <RootNavigator />
+              </NavigationContainer>
+              <StatusBar style="light" />
+            </AuthProvider>
+          </ToastProvider>
+        </SafeAreaProvider>
+      </KeyboardProvider>
+    </GestureHandlerRootView>
   );
 }
+
+const styles = StyleSheet.create({
+  gestureRoot: { flex: 1 },
+});

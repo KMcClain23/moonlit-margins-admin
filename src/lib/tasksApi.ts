@@ -1,4 +1,5 @@
 import { apiFetch } from "./api";
+import { withCache, type CachedResult } from "./offlineCache";
 
 export type TaskStatus = "todo" | "in_progress" | "done";
 export type AcceptanceStatus = "pending" | "accepted" | "proposed_change";
@@ -22,9 +23,11 @@ export interface Task {
   assignerName: string;
 }
 
-export async function listTasks(): Promise<Task[]> {
-  const data = await apiFetch<{ tasks: Task[] }>("/api/admin/tasks");
-  return data.tasks;
+export async function listTasks(): Promise<CachedResult<Task[]>> {
+  return withCache("tasks", async () => {
+    const data = await apiFetch<{ tasks: Task[] }>("/api/admin/tasks");
+    return data.tasks;
+  });
 }
 
 /**

@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
+import Animated from "react-native-reanimated";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import {
@@ -9,10 +10,17 @@ import {
   type ApplicationView,
 } from "../lib/applicationsApi";
 import { ApiError } from "../lib/apiError";
+import { selection } from "../lib/haptics";
+import { listItemExiting, listItemLayout, staggeredEntering } from "../lib/listAnimations";
+import { useNetworkStatus } from "../lib/useNetworkStatus";
 import type { ApplicationsStackParamList } from "../navigation/RootNavigator";
 import { colors, withAlpha } from "../theme/colors";
 import { typography } from "../theme/typography";
 import EmptyState from "../components/EmptyState";
+import OfflineBanner from "../components/OfflineBanner";
+import SkeletonRow from "../components/SkeletonRow";
+
+const SKELETON_ROWS = Array.from({ length: 5 }, (_, i) => i);
 
 type Nav = NativeStackNavigationProp<ApplicationsStackParamList, "ApplicationsList">;
 type KindFilter = "all" | ApplicationKind;
@@ -58,6 +66,9 @@ export default function ApplicationsListScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isStale, setIsStale] = useState(false);
+  const [cachedAt, setCachedAt] = useState<string | null>(null);
+  const isOffline = useNetworkStatus();
 
   const load = useCallback(
     async (isRefresh: boolean) => {
@@ -68,7 +79,10 @@ export default function ApplicationsListScreen() {
       }
       setErrorMessage(null);
       try {
-        setApplications(await listApplications(kind, view));
+        const result = await listApplications(kind, view);
+        setApplications(result.data);
+        setIsStale(result.stale);
+        setCachedAt(result.cachedAt);
       } catch (err) {
         setErrorMessage(err instanceof ApiError ? err.message : "Could not load applications.");
       } finally {
@@ -87,12 +101,16 @@ export default function ApplicationsListScreen() {
 
   return (
     <View style={styles.container}>
+      <OfflineBanner visible={isOffline || isStale} cachedAt={cachedAt} />
       <View style={styles.toggleRow}>
         {(["active", "archived"] as ApplicationView[]).map((v) => (
           <Pressable
             key={v}
             style={[styles.toggleChip, view === v && styles.toggleChipActive]}
-            onPress={() => setView(v)}
+            onPress={() => {
+              selection();
+              setView(v);
+            }}
           >
             <Text style={[styles.toggleChipText, view === v && styles.toggleChipTextActive]}>
               {v === "active" ? "Active" : "Archived"}
@@ -106,7 +124,10 @@ export default function ApplicationsListScreen() {
           <Pressable
             key={f.value}
             style={[styles.filterChip, kind === f.value && styles.filterChipActive]}
-            onPress={() => setKind(f.value)}
+            onPress={() => {
+              selection();
+              setKind(f.value);
+            }}
           >
             <Text style={[styles.filterChipText, kind === f.value && styles.filterChipTextActive]}>
               {f.label}
@@ -115,48 +136,63 @@ export default function ApplicationsListScreen() {
         ))}
       </View>
 
-      <FlatList
-        data={applications}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={applications.length === 0 ? styles.emptyContent : styles.listContent}
-        refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={() => load(true)} />}
-        ListEmptyComponent={
-          isLoading ? (
-            <Text style={styles.emptyText}>Loading…</Text>
-          ) : errorMessage ? (
-            <Text style={styles.errorText}>{errorMessage}</Text>
-          ) : (
-            <EmptyState message="No applications here." />
-          )
-        }
-        renderItem={({ item }) => (
-          <Pressable
-            style={styles.row}
-            onPress={() => navigation.navigate("ApplicationDetail", { applicationId: item.id })}
-          >
-            <View style={styles.rowHeader}>
-              <Text style={styles.title}>{item.fullName}</Text>
-              <View style={[styles.badge, { backgroundColor: withAlpha(STATUS_COLORS[item.status], 0.15) }]}>
-                <Text style={[styles.badgeText, { color: STATUS_COLORS[item.status] }]}>
-                  {STATUS_LABELS[item.status]}
-                </Text>
-              </View>
-            </View>
-            <Text style={styles.subtitle}>{item.email}</Text>
-            {item.instagramHandle || item.tiktokHandle ? (
-              <Text style={styles.handles}>
-                {item.instagramHandle ? `IG: ${item.instagramHandle}` : ""}
-                {item.instagramHandle && item.tiktokHandle ? " · " : ""}
-                {item.tiktokHandle ? `TikTok: ${item.tiktokHandle}` : ""}
-              </Text>
-            ) : null}
-            <View style={styles.footerRow}>
-              <Text style={styles.kindLabel}>{KIND_LABELS[item.kind]}</Text>
-              <Text style={styles.createdDate}>{formatCreatedDate(item.createdAt)}</Text>
-            </View>
-          </Pressable>
-        )}
-      />
+      {isLoading && applications.length === 0 ? (
+        <View style={styles.listContent}>
+          {SKELETON_ROWS.map((i) => (
+            <SkeletonRow key={i} />
+          ))}
+        </View>
+      ) : (
+        <FlatList
+          data={applications}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={applications.length === 0 ? styles.emptyContent : styles.listContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={() => load(true)}
+              tintColor={colors.lilac.default}
+              colors={[colors.lilac.default]}
+            />
+          }
+          ListEmptyComponent={
+            errorMessage ? (
+              <Text style={styles.errorText}>{errorMessage}</Text>
+            ) : (
+              <EmptyState message="No applications here." />
+            )
+          }
+          renderItem={({ item, index }) => (
+            <Animated.View entering={staggeredEntering(index)} exiting={listItemExiting} layout={listItemLayout}>
+              <Pressable
+                style={styles.row}
+                onPress={() => navigation.navigate("ApplicationDetail", { applicationId: item.id })}
+              >
+                <View style={styles.rowHeader}>
+                  <Text style={styles.title}>{item.fullName}</Text>
+                  <View style={[styles.badge, { backgroundColor: withAlpha(STATUS_COLORS[item.status], 0.15) }]}>
+                    <Text style={[styles.badgeText, { color: STATUS_COLORS[item.status] }]}>
+                      {STATUS_LABELS[item.status]}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={styles.subtitle}>{item.email}</Text>
+                {item.instagramHandle || item.tiktokHandle ? (
+                  <Text style={styles.handles}>
+                    {item.instagramHandle ? `IG: ${item.instagramHandle}` : ""}
+                    {item.instagramHandle && item.tiktokHandle ? " · " : ""}
+                    {item.tiktokHandle ? `TikTok: ${item.tiktokHandle}` : ""}
+                  </Text>
+                ) : null}
+                <View style={styles.footerRow}>
+                  <Text style={styles.kindLabel}>{KIND_LABELS[item.kind]}</Text>
+                  <Text style={styles.createdDate}>{formatCreatedDate(item.createdAt)}</Text>
+                </View>
+              </Pressable>
+            </Animated.View>
+          )}
+        />
+      )}
     </View>
   );
 }
@@ -187,7 +223,6 @@ const styles = StyleSheet.create({
   filterChipTextActive: { fontFamily: typography.bodySemibold, color: colors.lilac.default },
   listContent: { padding: 16 },
   emptyContent: { flexGrow: 1 },
-  emptyText: { fontFamily: typography.body, color: colors.muted, fontSize: 15, textAlign: "center", marginTop: 40 },
   errorText: {
     fontFamily: typography.body,
     color: colors.candle.default,

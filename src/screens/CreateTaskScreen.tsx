@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useAuth } from "../lib/authStore";
 import { createTask, type TaskAssignment } from "../lib/tasksApi";
-import { listMembers, type MemberOption } from "../lib/membersApi";
+import { listMembers, type Member } from "../lib/membersApi";
 import { ApiError } from "../lib/apiError";
+import { impactLight } from "../lib/haptics";
 import type { TasksStackParamList } from "../navigation/RootNavigator";
 import DateField from "../components/DateField";
 import { colors } from "../theme/colors";
@@ -23,7 +25,7 @@ export default function CreateTaskScreen() {
   const [dueDate, setDueDate] = useState("");
   const [assignMode, setAssignMode] = useState<AssignMode>("member");
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
-  const [members, setMembers] = useState<MemberOption[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
   const [isLoadingMembers, setIsLoadingMembers] = useState(true);
   const [membersError, setMembersError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -32,9 +34,9 @@ export default function CreateTaskScreen() {
   useEffect(() => {
     let cancelled = false;
     listMembers()
-      .then((data) => {
+      .then((result) => {
         if (cancelled) return;
-        setMembers(data);
+        setMembers(result.data);
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -63,6 +65,7 @@ export default function CreateTaskScreen() {
     title.trim().length >= 2 && !isSubmitting && (assignMode !== "member" || Boolean(selectedMemberId));
 
   async function handleSubmit() {
+    impactLight();
     setErrorMessage(null);
     setIsSubmitting(true);
 
@@ -87,7 +90,7 @@ export default function CreateTaskScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <KeyboardAwareScrollView contentContainerStyle={styles.container} bottomOffset={20}>
       <Text style={styles.label}>Title</Text>
       <TextInput
         style={styles.input}
@@ -177,7 +180,7 @@ export default function CreateTaskScreen() {
           <Text style={styles.submitButtonText}>Create task</Text>
         )}
       </Pressable>
-    </ScrollView>
+    </KeyboardAwareScrollView>
   );
 }
 

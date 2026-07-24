@@ -12,12 +12,15 @@ import {
 } from "react-native";
 import { useFocusEffect, useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
 import { useAuth } from "../lib/authStore";
 import {
   EVENT_STATUS_LABELS,
   EVENT_TYPE_LABELS,
   REGISTRATION_TYPE_LABELS,
   deleteEvent,
+  formatEventDateTime,
   listEventComments,
   listEventRsvps,
   listEvents,
@@ -28,16 +31,13 @@ import {
   type Rsvp,
 } from "../lib/eventsApi";
 import { ApiError } from "../lib/apiError";
+import { impactLight, impactMedium } from "../lib/haptics";
 import type { EventsStackParamList } from "../navigation/RootNavigator";
 import { colors } from "../theme/colors";
 import { typography } from "../theme/typography";
 
 type Nav = NativeStackNavigationProp<EventsStackParamList, "EventDetail">;
 type DetailRoute = RouteProp<EventsStackParamList, "EventDetail">;
-
-function formatDateTime(value: string): string {
-  return new Date(value).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" });
-}
 
 export default function EventDetailScreen() {
   const navigation = useNavigation<Nav>();
@@ -71,7 +71,7 @@ export default function EventDetailScreen() {
     setLoadError(null);
     try {
       const events = await listEvents();
-      const found = events.find((e) => e.id === eventId) ?? null;
+      const found = events.data.find((e) => e.id === eventId) ?? null;
       setEvent(found);
       if (!found) {
         setLoadError("This event couldn't be found -- it may have been deleted.");
@@ -130,6 +130,7 @@ export default function EventDetailScreen() {
         text: "Delete",
         style: "destructive",
         onPress: () => {
+          impactMedium();
           setActionError(null);
           setIsDeleting(true);
           deleteEvent(eventId)
@@ -146,6 +147,7 @@ export default function EventDetailScreen() {
   async function handleSendComment() {
     const trimmed = commentText.trim();
     if (!trimmed) return;
+    impactLight();
     setCommentSendError(null);
     setIsPostingComment(true);
     try {
@@ -178,157 +180,186 @@ export default function EventDetailScreen() {
   const showRsvps = event.registrationType === "rsvp" && event.status !== "canceled";
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>{event.title}</Text>
-      {event.description ? <Text style={styles.description}>{event.description}</Text> : null}
-
-      <View style={styles.metaRow}>
-        <Text style={styles.metaLabel}>Starts</Text>
-        <Text style={styles.metaValue}>{formatDateTime(event.startsAt)}</Text>
-      </View>
-      {event.location ? (
-        <View style={styles.metaRow}>
-          <Text style={styles.metaLabel}>Location</Text>
-          <Text style={styles.metaValue}>{event.location}</Text>
-        </View>
-      ) : null}
-      <View style={styles.metaRow}>
-        <Text style={styles.metaLabel}>Type</Text>
-        <Text style={styles.metaValue}>{EVENT_TYPE_LABELS[event.eventType]}</Text>
-      </View>
-      <View style={styles.metaRow}>
-        <Text style={styles.metaLabel}>Registration</Text>
-        <Text style={styles.metaValue}>{REGISTRATION_TYPE_LABELS[event.registrationType]}</Text>
-      </View>
-      <View style={styles.metaRow}>
-        <Text style={styles.metaLabel}>Status</Text>
-        <Text style={styles.metaValue}>{EVENT_STATUS_LABELS[event.status]}</Text>
-      </View>
-      {event.isPrivate ? (
-        <View style={styles.metaRow}>
-          <Text style={styles.metaLabel}>Private</Text>
-          <Text style={styles.metaValue}>
-            {event.targetTiers && event.targetTiers.length > 0
-              ? event.targetTiers.map(tierLabel).join(", ")
-              : "Yes"}
-          </Text>
-        </View>
-      ) : null}
-      {event.linkUrl ? (
-        <Pressable onPress={() => Linking.openURL(event.linkUrl as string)} style={styles.metaRow}>
-          <Text style={styles.metaLabel}>Link</Text>
-          <Text style={[styles.metaValue, styles.link]} numberOfLines={1}>
-            {event.linkUrl}
-          </Text>
-        </Pressable>
-      ) : null}
-
-      {canManage ? (
-        <View style={styles.buttonRow}>
-          <Pressable
-            style={styles.editButton}
-            onPress={() => navigation.navigate("EditEvent", { event })}
-            disabled={isDeleting}
-          >
-            <Text style={styles.editButtonText}>Edit</Text>
-          </Pressable>
-          <Pressable style={styles.deleteButton} onPress={handleDelete} disabled={isDeleting}>
-            <Text style={styles.deleteButtonText}>Delete</Text>
-          </Pressable>
-        </View>
-      ) : null}
-
-      {actionError ? <Text style={styles.errorText}>{actionError}</Text> : null}
-
-      {showRsvps ? (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            {isLoadingRsvps ? "RSVPs" : `${rsvps.length} RSVP${rsvps.length === 1 ? "" : "s"}`}
-          </Text>
-          {rsvpsError ? (
-            <Text style={styles.errorText}>{rsvpsError}</Text>
-          ) : (
-            <>
-              <Pressable onPress={() => setRsvpsExpanded((v) => !v)}>
-                <Text style={styles.linkButton}>{rsvpsExpanded ? "Hide list" : "Show list"}</Text>
-              </Pressable>
-              {rsvpsExpanded ? (
-                isLoadingRsvps ? (
-                  <ActivityIndicator style={styles.sectionLoading} color={colors.lilac.default} />
-                ) : rsvps.length === 0 ? (
-                  <Text style={styles.emptyText}>No RSVPs yet.</Text>
-                ) : (
-                  <View style={styles.list}>
-                    {rsvps.map((r) => (
-                      <View key={r.id} style={styles.listRow}>
-                        <Text style={styles.listRowTitle}>
-                          {r.first_name} {r.last_name}
-                        </Text>
-                        <Text style={styles.listRowSubtitle}>{r.email}</Text>
-                      </View>
-                    ))}
-                  </View>
-                )
-              ) : null}
-            </>
-          )}
-        </View>
-      ) : null}
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Comments</Text>
-        {commentsError ? (
-          <Text style={styles.errorText}>{commentsError}</Text>
-        ) : isLoadingComments && comments.length === 0 ? (
-          <ActivityIndicator style={styles.sectionLoading} color={colors.lilac.default} />
-        ) : comments.length === 0 ? (
-          <Text style={styles.emptyText}>No comments yet.</Text>
-        ) : (
-          <View style={styles.list}>
-            {comments.map((c) => (
-              <View key={c.id} style={styles.listRow}>
-                <View style={styles.commentHeader}>
-                  <Text style={styles.listRowTitle}>{c.senderName}</Text>
-                  <Text style={styles.commentTime}>{formatDateTime(c.createdAt)}</Text>
-                </View>
-                <Text style={styles.commentBody}>{c.body}</Text>
-              </View>
-            ))}
+    <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+      {event.coverImageUrl ? (
+        <View style={styles.hero}>
+          <Image source={{ uri: event.coverImageUrl }} style={styles.heroImage} contentFit="cover" transition={300} />
+          {/* End color is opaque colors.ink (not alpha'd like the list
+              card's overlay) so the very bottom row blends into the
+              screen's own background instead of leaving a visible seam. */}
+          <LinearGradient colors={["transparent", colors.ink]} style={styles.heroGradient} />
+          <View style={styles.heroTextOverlay}>
+            <Text style={styles.heroTitle}>{event.title}</Text>
+            <Text style={styles.heroSubtitle}>{formatEventDateTime(event.startsAt)}</Text>
           </View>
-        )}
+        </View>
+      ) : null}
 
-        {commentSendError ? <Text style={styles.errorText}>{commentSendError}</Text> : null}
+      <View style={styles.container}>
+        {!event.coverImageUrl ? <Text style={styles.title}>{event.title}</Text> : null}
+        {event.description ? <Text style={styles.description}>{event.description}</Text> : null}
 
-        <View style={styles.commentInputRow}>
-          <TextInput
-            style={[styles.input, styles.commentInput]}
-            placeholder="Add a comment…"
-            placeholderTextColor={colors.muted}
-            value={commentText}
-            onChangeText={setCommentText}
-            editable={!isPostingComment}
-            multiline
-          />
-          <Pressable
-            style={[styles.sendButton, (!commentText.trim() || isPostingComment) && styles.sendButtonDisabled]}
-            onPress={handleSendComment}
-            disabled={!commentText.trim() || isPostingComment}
-          >
-            {isPostingComment ? (
-              <ActivityIndicator color={colors.ink} size="small" />
-            ) : (
-              <Text style={styles.sendButtonText}>Send</Text>
-            )}
+        <View style={styles.metaRow}>
+          <Text style={styles.metaLabel}>Starts</Text>
+          <Text style={styles.metaValue}>{formatEventDateTime(event.startsAt)}</Text>
+        </View>
+        {event.location ? (
+          <View style={styles.metaRow}>
+            <Text style={styles.metaLabel}>Location</Text>
+            <Text style={styles.metaValue}>{event.location}</Text>
+          </View>
+        ) : null}
+        <View style={styles.metaRow}>
+          <Text style={styles.metaLabel}>Type</Text>
+          <Text style={styles.metaValue}>{EVENT_TYPE_LABELS[event.eventType]}</Text>
+        </View>
+        <View style={styles.metaRow}>
+          <Text style={styles.metaLabel}>Registration</Text>
+          <Text style={styles.metaValue}>{REGISTRATION_TYPE_LABELS[event.registrationType]}</Text>
+        </View>
+        <View style={styles.metaRow}>
+          <Text style={styles.metaLabel}>Status</Text>
+          <Text style={styles.metaValue}>{EVENT_STATUS_LABELS[event.status]}</Text>
+        </View>
+        {event.isPrivate ? (
+          <View style={styles.metaRow}>
+            <Text style={styles.metaLabel}>Private</Text>
+            <Text style={styles.metaValue}>
+              {event.targetTiers && event.targetTiers.length > 0
+                ? event.targetTiers.map(tierLabel).join(", ")
+                : "Yes"}
+            </Text>
+          </View>
+        ) : null}
+        {event.linkUrl ? (
+          <Pressable onPress={() => Linking.openURL(event.linkUrl as string)} style={styles.metaRow}>
+            <Text style={styles.metaLabel}>Link</Text>
+            <Text style={[styles.metaValue, styles.link]} numberOfLines={1}>
+              {event.linkUrl}
+            </Text>
           </Pressable>
+        ) : null}
+
+        {canManage ? (
+          <View style={styles.buttonRow}>
+            <Pressable
+              style={styles.editButton}
+              onPress={() => {
+                impactLight();
+                navigation.navigate("EditEvent", { event });
+              }}
+              disabled={isDeleting}
+            >
+              <Text style={styles.editButtonText}>Edit</Text>
+            </Pressable>
+            <Pressable style={styles.deleteButton} onPress={handleDelete} disabled={isDeleting}>
+              <Text style={styles.deleteButtonText}>Delete</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
+        {actionError ? <Text style={styles.errorText}>{actionError}</Text> : null}
+
+        {showRsvps ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              {isLoadingRsvps ? "RSVPs" : `${rsvps.length} RSVP${rsvps.length === 1 ? "" : "s"}`}
+            </Text>
+            {rsvpsError ? (
+              <Text style={styles.errorText}>{rsvpsError}</Text>
+            ) : (
+              <>
+                <Pressable onPress={() => setRsvpsExpanded((v) => !v)}>
+                  <Text style={styles.linkButton}>{rsvpsExpanded ? "Hide list" : "Show list"}</Text>
+                </Pressable>
+                {rsvpsExpanded ? (
+                  isLoadingRsvps ? (
+                    <ActivityIndicator style={styles.sectionLoading} color={colors.lilac.default} />
+                  ) : rsvps.length === 0 ? (
+                    <Text style={styles.emptyText}>No RSVPs yet.</Text>
+                  ) : (
+                    <View style={styles.list}>
+                      {rsvps.map((r) => (
+                        <View key={r.id} style={styles.listRow}>
+                          <Text style={styles.listRowTitle}>
+                            {r.first_name} {r.last_name}
+                          </Text>
+                          <Text style={styles.listRowSubtitle}>{r.email}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )
+                ) : null}
+              </>
+            )}
+          </View>
+        ) : null}
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Comments</Text>
+          {commentsError ? (
+            <Text style={styles.errorText}>{commentsError}</Text>
+          ) : isLoadingComments && comments.length === 0 ? (
+            <ActivityIndicator style={styles.sectionLoading} color={colors.lilac.default} />
+          ) : comments.length === 0 ? (
+            <Text style={styles.emptyText}>No comments yet.</Text>
+          ) : (
+            <View style={styles.list}>
+              {comments.map((c) => (
+                <View key={c.id} style={styles.listRow}>
+                  <View style={styles.commentHeader}>
+                    <Text style={styles.listRowTitle}>{c.senderName}</Text>
+                    <Text style={styles.commentTime}>{formatEventDateTime(c.createdAt)}</Text>
+                  </View>
+                  <Text style={styles.commentBody}>{c.body}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {commentSendError ? <Text style={styles.errorText}>{commentSendError}</Text> : null}
+
+          <View style={styles.commentInputRow}>
+            <TextInput
+              style={[styles.input, styles.commentInput]}
+              placeholder="Add a comment…"
+              placeholderTextColor={colors.muted}
+              value={commentText}
+              onChangeText={setCommentText}
+              editable={!isPostingComment}
+              multiline
+            />
+            <Pressable
+              style={[styles.sendButton, (!commentText.trim() || isPostingComment) && styles.sendButtonDisabled]}
+              onPress={handleSendComment}
+              disabled={!commentText.trim() || isPostingComment}
+            >
+              {isPostingComment ? (
+                <ActivityIndicator color={colors.ink} size="small" />
+              ) : (
+                <Text style={styles.sendButtonText}>Send</Text>
+              )}
+            </Pressable>
+          </View>
         </View>
       </View>
     </ScrollView>
   );
 }
 
+const HERO_HEIGHT = 240;
+
 const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.ink, padding: 24 },
-  container: { padding: 20, backgroundColor: colors.ink, flexGrow: 1 },
+  scroll: { flex: 1, backgroundColor: colors.ink },
+  scrollContent: { flexGrow: 1 },
+  hero: { height: HERO_HEIGHT, width: "100%" },
+  heroImage: { width: "100%", height: "100%" },
+  heroGradient: { position: "absolute", left: 0, right: 0, bottom: 0, height: "55%" },
+  heroTextOverlay: { position: "absolute", left: 20, right: 20, bottom: 16 },
+  heroTitle: { fontFamily: typography.display, fontSize: 24, color: colors.parchment },
+  heroSubtitle: { fontFamily: typography.body, fontSize: 13, color: colors.parchment, marginTop: 4, opacity: 0.9 },
+  container: { padding: 20, flexGrow: 1 },
   title: { fontFamily: typography.display, fontSize: 22, color: colors.parchment },
   description: { fontFamily: typography.body, fontSize: 15, color: colors.muted, marginTop: 8, lineHeight: 21 },
   metaRow: {

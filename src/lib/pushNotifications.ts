@@ -5,7 +5,12 @@ import * as Crypto from "expo-crypto";
 import * as SecureStore from "expo-secure-store";
 import Constants from "expo-constants";
 import { API_BASE_URL } from "../config";
-import { SESSION_STORAGE_KEY } from "./storageKeys";
+import {
+  SESSION_STORAGE_KEY,
+  PUSH_ENABLED_STORAGE_KEY,
+  NOTIFICATION_SOUND_STORAGE_KEY,
+  NOTIFICATION_VIBRATION_STORAGE_KEY,
+} from "./storageKeys";
 
 const DEVICE_ID_KEY = "mm_admin_device_id";
 
@@ -111,6 +116,133 @@ export async function ensureAndroidNotificationChannel(): Promise<void> {
   console.log("[push] existing notification channels:", JSON.stringify(channels));
 }
 
+// Android won't let a channel's sound/vibration change after creation --
+// only its name/description/importance can be updated in place. So instead
+// of one mutable channel, four fixed variants are pre-created up front
+// (every sound x vibration combination) and the server is told, per
+// device, which one it should route pushes to (preferredChannelId on
+// POST /api/admin/push-tokens) -- see resolveChannelId() below.
+const MESSAGE_CHANNEL_CONFIG: Record<
+  string,
+  { name: string; sound: string | null; enableVibrate: boolean; vibrationPattern: number[] | null }
+> = {
+  "messages-default": {
+    name: "Messages (sound & vibration)",
+    sound: "default",
+    enableVibrate: true,
+    vibrationPattern: [0, 250, 250, 250],
+  },
+  "messages-sound-only": {
+    name: "Messages (sound only)",
+    sound: "default",
+    enableVibrate: false,
+    vibrationPattern: null,
+  },
+  "messages-vibrate-only": {
+    name: "Messages (vibration only)",
+    sound: null,
+    enableVibrate: true,
+    vibrationPattern: [0, 250, 250, 250],
+  },
+  "messages-silent": {
+    name: "Messages (silent)",
+    sound: null,
+    enableVibrate: false,
+    vibrationPattern: null,
+  },
+};
+
+/**
+ * Pre-creates all four message-channel variants. Called once at app
+ * startup (App.tsx, alongside ensureAndroidNotificationChannel above) so
+ * every variant already exists on the device by the time a preference
+ * change needs to point registration at a different one.
+ */
+export async function ensureMessageNotificationChannels(): Promise<void> {
+  if (Platform.OS !== "android") return;
+  await Promise.all(
+    Object.entries(MESSAGE_CHANNEL_CONFIG).map(([id, config]) =>
+      Notifications.setNotificationChannelAsync(id, {
+        name: config.name,
+        importance: Notifications.AndroidImportance.MAX,
+        sound: config.sound,
+        enableVibrate: config.enableVibrate,
+        vibrationPattern: config.vibrationPattern,
+        lightColor: "#FF231F7C",
+      })
+    )
+  );
+}
+
+/** Maps the two independent preferences to whichever pre-created channel
+ * id matches -- the only four combinations that exist. */
+export function resolveChannelId(sound: boolean, vibration: boolean): string {
+  if (sound && vibration) return "messages-default";
+  if (sound && !vibration) return "messages-sound-only";
+  if (!sound && vibration) return "messages-vibrate-only";
+  return "messages-silent";
+}
+
+export interface NotificationPreferences {
+  sound: boolean;
+  vibration: boolean;
+}
+
+/** Both default to true when nothing's been stored yet -- matches the
+ * 'messages-default' channel POST /api/admin/push-tokens already falls
+ * back to server-side. */
+export async function getStoredNotificationPreferences(): Promise<NotificationPreferences> {
+  const [soundRaw, vibrationRaw] = await Promise.all([
+    SecureStore.getItemAsync(NOTIFICATION_SOUND_STORAGE_KEY),
+    SecureStore.getItemAsync(NOTIFICATION_VIBRATION_STORAGE_KEY),
+  ]);
+  return {
+    sound: soundRaw === null ? true : soundRaw === "true",
+    vibration: vibrationRaw === null ? true : vibrationRaw === "true",
+  };
+}
+
+/** Persists the new preferences, then -- if push is currently enabled on
+ * this device -- re-runs the normal registration flow so the server
+ * learns the newly resolved preferredChannelId. A no-op network-wise
+ * when push is off; setupPushNotifications() picks the new preferences
+ * back up itself whenever it's next enabled. */
+export async function saveNotificationPreferences(preferences: NotificationPreferences): Promise<void> {
+  await Promise.all([
+    SecureStore.setItemAsync(NOTIFICATION_SOUND_STORAGE_KEY, String(preferences.sound)),
+    SecureStore.setItemAsync(NOTIFICATION_VIBRATION_STORAGE_KEY, String(preferences.vibration)),
+  ]);
+
+  if (await isGlobalPushEnabled()) {
+    await setupPushNotifications();
+  }
+}
+
+/** Both default to true when nothing's been stored yet, i.e. push is on
+ * unless someone has explicitly turned it off. */
+export async function isGlobalPushEnabled(): Promise<boolean> {
+  const raw = await SecureStore.getItemAsync(PUSH_ENABLED_STORAGE_KEY);
+  return raw === null ? true : raw === "true";
+}
+
+/** Flips the device-level push switch. The flag is persisted first so
+ * the on/off state is never lost even if the network call that follows
+ * fails -- setupPushNotifications() itself checks this flag on every
+ * call (app-foreground re-registration included), so once it's off,
+ * nothing silently re-registers this device until it's turned back on. */
+export async function setGlobalPushEnabled(enabled: boolean): Promise<void> {
+  await SecureStore.setItemAsync(PUSH_ENABLED_STORAGE_KEY, String(enabled));
+  try {
+    if (enabled) {
+      await setupPushNotifications();
+    } else {
+      await unregisterPushNotifications();
+    }
+  } catch (err) {
+    console.error("[push] setGlobalPushEnabled: server sync failed", err);
+  }
+}
+
 /**
  * This install's stable device id, generated once and persisted via
  * SecureStore so it survives app restarts. A reinstall gets a fresh id,
@@ -175,15 +307,26 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
 
 /**
  * Ties deviceId + push token together and registers this device with the
- * backend. Safe to call repeatedly -- once right after login, and again
- * every time the app returns to the foreground (the token can rotate) --
- * since the server upserts on (admin_user_id, device_id).
+ * backend. Safe to call repeatedly -- once right after login, again every
+ * time the app returns to the foreground (the token can rotate), and again
+ * whenever sound/vibration preferences change (to update preferredChannelId)
+ * -- since the server upserts on (admin_user_id, device_id).
+ *
+ * Checks isGlobalPushEnabled() itself, rather than requiring every call
+ * site to check first, so a device that's been explicitly turned off
+ * stays off through login and foreground re-registration alike.
  */
 export async function setupPushNotifications(): Promise<void> {
   try {
-    const [deviceId, expoPushToken] = await Promise.all([
+    if (!(await isGlobalPushEnabled())) {
+      console.log("[push] setupPushNotifications: push disabled on this device, skipping");
+      return;
+    }
+
+    const [deviceId, expoPushToken, preferences] = await Promise.all([
       getOrCreateDeviceId(),
       registerForPushNotificationsAsync(),
+      getStoredNotificationPreferences(),
     ]);
 
     console.log("[push] setupPushNotifications: deviceId =", deviceId, "expoPushToken =", expoPushToken);
@@ -197,6 +340,7 @@ export async function setupPushNotifications(): Promise<void> {
       expoPushToken,
       deviceId,
       platform: Platform.OS,
+      preferredChannelId: resolveChannelId(preferences.sound, preferences.vibration),
     });
 
     if (!response) {

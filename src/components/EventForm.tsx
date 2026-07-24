@@ -1,6 +1,8 @@
 import { useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import DateTimeField from "./DateTimeField";
+import { impactLight } from "../lib/haptics";
 import {
   EVENT_STATUS_LABELS,
   EVENT_TYPE_LABELS,
@@ -59,6 +61,7 @@ export default function EventForm({
   }
 
   function handleSubmit() {
+    impactLight();
     onSubmit({
       title: title.trim(),
       description: description.trim(),
@@ -75,7 +78,7 @@ export default function EventForm({
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <KeyboardAwareScrollView contentContainerStyle={styles.container} bottomOffset={20}>
       <Text style={styles.label}>Title</Text>
       <TextInput
         style={styles.input}
@@ -225,7 +228,7 @@ export default function EventForm({
           <Text style={styles.submitButtonText}>{submitLabel}</Text>
         )}
       </Pressable>
-    </ScrollView>
+    </KeyboardAwareScrollView>
   );
 }
 

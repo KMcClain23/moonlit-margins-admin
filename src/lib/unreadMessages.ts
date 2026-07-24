@@ -27,7 +27,7 @@ function notify(): void {
  */
 export async function refreshUnreadCount(): Promise<void> {
   try {
-    const conversations = await listConversations();
+    const { data: conversations } = await listConversations();
     currentCount = conversations.reduce((sum, c) => sum + c.unreadCount, 0);
     notify();
   } catch {

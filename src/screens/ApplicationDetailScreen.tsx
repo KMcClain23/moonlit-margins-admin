@@ -10,6 +10,8 @@ import {
   type ApplicationStatus,
 } from "../lib/applicationsApi";
 import { ApiError } from "../lib/apiError";
+import { impactLight, impactMedium } from "../lib/haptics";
+import { useToast } from "../lib/toastStore";
 import type { ApplicationsStackParamList } from "../navigation/RootNavigator";
 import { colors } from "../theme/colors";
 import { typography } from "../theme/typography";
@@ -40,6 +42,7 @@ export default function ApplicationDetailScreen() {
   const navigation = useNavigation<Nav>();
   const route = useRoute<DetailRoute>();
   const { applicationId } = route.params;
+  const { showToast } = useToast();
 
   const [application, setApplication] = useState<Application | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -58,7 +61,7 @@ export default function ApplicationDetailScreen() {
         listApplications("all", "active"),
         listApplications("all", "archived"),
       ]);
-      const found = [...active, ...archived].find((a) => a.id === applicationId) ?? null;
+      const found = [...active.data, ...archived.data].find((a) => a.id === applicationId) ?? null;
       setApplication(found);
       if (!found) {
         setLoadError("This application couldn't be found -- it may have been deleted.");
@@ -76,12 +79,13 @@ export default function ApplicationDetailScreen() {
     }, [load])
   );
 
-  async function runAction(fn: () => Promise<unknown>) {
+  async function runAction(fn: () => Promise<unknown>, successMessage?: string) {
     setActionError(null);
     setIsSubmitting(true);
     try {
       await fn();
       await load();
+      if (successMessage) showToast(successMessage);
     } catch (err) {
       setActionError(err instanceof ApiError ? err.message : "That didn't go through. Try again.");
     } finally {
@@ -90,7 +94,8 @@ export default function ApplicationDetailScreen() {
   }
 
   function handleStatusChange(next: ApplicationStatus) {
-    void runAction(() => updateApplicationStatus(applicationId, next));
+    impactLight();
+    void runAction(() => updateApplicationStatus(applicationId, next), `Status updated to ${STATUS_LABELS[next]}`);
   }
 
   function handleDelete() {
@@ -104,6 +109,7 @@ export default function ApplicationDetailScreen() {
           text: "Delete",
           style: "destructive",
           onPress: () => {
+            impactMedium();
             void runAction(async () => {
               await deleteApplication(applicationId);
               navigation.goBack();

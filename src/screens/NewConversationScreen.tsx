@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import {
@@ -9,6 +10,7 @@ import {
   type AdminUserSummary,
 } from "../lib/messagesApi";
 import { ApiError } from "../lib/apiError";
+import { impactLight } from "../lib/haptics";
 import type { MessagesStackParamList } from "../navigation/RootNavigator";
 import { colors } from "../theme/colors";
 import { typography } from "../theme/typography";
@@ -72,6 +74,7 @@ export default function NewConversationScreen() {
   const canSubmit = selectedIds.length > 0 && !isSubmitting;
 
   async function handleSubmit() {
+    impactLight();
     setErrorMessage(null);
     setIsSubmitting(true);
     try {
@@ -85,7 +88,7 @@ export default function NewConversationScreen() {
       // than re-deriving that logic here, so it's guaranteed to match what
       // the conversations list would show for the same conversation.
       const conversations = await listConversations();
-      const created = conversations.find((c) => c.id === conversationId);
+      const created = conversations.data.find((c) => c.id === conversationId);
       navigation.replace("ConversationDetail", {
         conversationId,
         title: created?.title ?? "Conversation",
@@ -98,7 +101,7 @@ export default function NewConversationScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <KeyboardAwareScrollView contentContainerStyle={styles.container} bottomOffset={20}>
       <Text style={styles.label}>Type</Text>
       <View style={styles.chipRow}>
         {(["direct", "group"] as ConversationKind[]).map((kind) => (
@@ -165,7 +168,7 @@ export default function NewConversationScreen() {
           <Text style={styles.submitButtonText}>Start conversation</Text>
         )}
       </Pressable>
-    </ScrollView>
+    </KeyboardAwareScrollView>
   );
 }
 

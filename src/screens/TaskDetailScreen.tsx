@@ -5,6 +5,8 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useAuth } from "../lib/authStore";
 import { deleteTask, listTasks, respondToTask, updateTaskStatus, type Task, type TaskStatus } from "../lib/tasksApi";
 import { ApiError } from "../lib/apiError";
+import { impactLight, impactMedium } from "../lib/haptics";
+import { useToast } from "../lib/toastStore";
 import type { TasksStackParamList } from "../navigation/RootNavigator";
 import DateField from "../components/DateField";
 import { colors } from "../theme/colors";
@@ -25,6 +27,7 @@ export default function TaskDetailScreen() {
   const route = useRoute<DetailRoute>();
   const { taskId } = route.params;
   const { session } = useAuth();
+  const { showToast } = useToast();
 
   const [task, setTask] = useState<Task | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -44,7 +47,7 @@ export default function TaskDetailScreen() {
     setLoadError(null);
     try {
       const tasks = await listTasks();
-      const found = tasks.find((t) => t.id === taskId) ?? null;
+      const found = tasks.data.find((t) => t.id === taskId) ?? null;
       setTask(found);
       if (!found) {
         setLoadError("This task couldn't be found -- it may have been deleted.");
@@ -62,12 +65,13 @@ export default function TaskDetailScreen() {
     }, [load])
   );
 
-  async function runAction(fn: () => Promise<unknown>) {
+  async function runAction(fn: () => Promise<unknown>, successMessage?: string) {
     setActionError(null);
     setIsSubmitting(true);
     try {
       await fn();
       await load();
+      if (successMessage) showToast(successMessage);
     } catch (err) {
       setActionError(err instanceof ApiError ? err.message : "That didn't go through. Try again.");
     } finally {
@@ -76,7 +80,8 @@ export default function TaskDetailScreen() {
   }
 
   function handleAccept() {
-    void runAction(() => respondToTask(taskId, "accept"));
+    impactLight();
+    void runAction(() => respondToTask(taskId, "accept"), "Task accepted");
   }
 
   function handleSendProposal() {
@@ -84,25 +89,32 @@ export default function TaskDetailScreen() {
       setActionError("Select a proposed date.");
       return;
     }
+    impactLight();
     void runAction(async () => {
       await respondToTask(taskId, "propose", proposedDate.trim(), proposeMessage.trim() || undefined);
       setIsProposing(false);
       setProposedDate("");
       setProposeMessage("");
-    });
+    }, "Proposal sent");
   }
 
   function handleApprove() {
-    void runAction(() => respondToTask(taskId, "approve_proposal"));
+    impactLight();
+    void runAction(() => respondToTask(taskId, "approve_proposal"), "Proposal approved");
   }
 
   function handleReject() {
-    void runAction(() => respondToTask(taskId, "reject_proposal"));
+    // No confirmation step exists for this action -- Medium (normally
+    // reserved for confirmed destructive actions) fires directly on tap
+    // since there's no Alert here to gate it behind.
+    impactMedium();
+    void runAction(() => respondToTask(taskId, "reject_proposal"), "Kept original date");
   }
 
   function handleStatusChange(nextStatus: TaskStatus) {
     if (!task) return;
-    void runAction(() => updateTaskStatus(task, nextStatus));
+    impactLight();
+    void runAction(() => updateTaskStatus(task, nextStatus), "Task updated");
   }
 
   function handleDelete() {
@@ -113,6 +125,7 @@ export default function TaskDetailScreen() {
         text: "Delete",
         style: "destructive",
         onPress: () => {
+          impactMedium();
           void runAction(async () => {
             await deleteTask(taskId);
             navigation.goBack();
@@ -169,7 +182,10 @@ export default function TaskDetailScreen() {
       {session?.canAssignTasks ? (
         <Pressable
           style={styles.editButton}
-          onPress={() => navigation.navigate("EditTask", { taskId })}
+          onPress={() => {
+            impactLight();
+            navigation.navigate("EditTask", { taskId });
+          }}
           disabled={isSubmitting}
         >
           <Text style={styles.editButtonText}>Edit</Text>

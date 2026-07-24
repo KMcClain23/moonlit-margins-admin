@@ -2,7 +2,10 @@
   "expo": {
     "name": "moonlit-margins-admin",
     "slug": "moonlit-margins-admin",
-    "version": "1.0.0",
+    "version": "1.0.10",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -17,7 +20,8 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.anonymous.moonlitmarginsadmin",
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json",
+      "versionCode": 11
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -35,12 +39,40 @@
           "resizeMode": "contain",
           "imageWidth": 200
         }
+      ],
+      "expo-image",
+      "expo-video",
+      [
+        "expo-quick-actions",
+        {
+          "androidIcons": {
+            "task": {
+              "foregroundImage": "./assets/moon-flame-emblem.png",
+              "backgroundColor": "#5FC7C0"
+            },
+            "message": {
+              "foregroundImage": "./assets/moon-flame-emblem.png",
+              "backgroundColor": "#5B9BD5"
+            },
+            "date": {
+              "foregroundImage": "./assets/moon-flame-emblem.png",
+              "backgroundColor": "#D9B44A"
+            },
+            "capture_photo": {
+              "foregroundImage": "./assets/moon-flame-emblem.png",
+              "backgroundColor": "#E88FB0"
+            }
+          }
+        }
       ]
     ],
     "extra": {
       "eas": {
         "projectId": "910ce06c-127f-49b0-a0f5-0e5463488433"
       }
+    },
+    "updates": {
+      "url": "https://u.expo.dev/910ce06c-127f-49b0-a0f5-0e5463488433"
     }
   }
 }

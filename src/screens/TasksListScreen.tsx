@@ -1,14 +1,22 @@
 import { useCallback, useState } from "react";
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
+import Animated from "react-native-reanimated";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useAuth } from "../lib/authStore";
 import { listTasks, type Task } from "../lib/tasksApi";
 import { ApiError } from "../lib/apiError";
+import { impactLight } from "../lib/haptics";
+import { listItemExiting, listItemLayout, staggeredEntering } from "../lib/listAnimations";
+import { useNetworkStatus } from "../lib/useNetworkStatus";
 import type { TasksStackParamList } from "../navigation/RootNavigator";
 import { colors, withAlpha } from "../theme/colors";
 import { typography } from "../theme/typography";
 import EmptyState from "../components/EmptyState";
+import OfflineBanner from "../components/OfflineBanner";
+import SkeletonRow from "../components/SkeletonRow";
+
+const SKELETON_ROWS = Array.from({ length: 5 }, (_, i) => i);
 
 type Nav = NativeStackNavigationProp<TasksStackParamList, "TasksList">;
 
@@ -42,6 +50,9 @@ export default function TasksListScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isStale, setIsStale] = useState(false);
+  const [cachedAt, setCachedAt] = useState<string | null>(null);
+  const isOffline = useNetworkStatus();
 
   const load = useCallback(async (isRefresh: boolean) => {
     if (isRefresh) {
@@ -51,7 +62,10 @@ export default function TasksListScreen() {
     }
     setErrorMessage(null);
     try {
-      setTasks(await listTasks());
+      const result = await listTasks();
+      setTasks(result.data);
+      setIsStale(result.stale);
+      setCachedAt(result.cachedAt);
     } catch (err) {
       setErrorMessage(err instanceof ApiError ? err.message : "Could not load tasks.");
     } finally {
@@ -68,49 +82,67 @@ export default function TasksListScreen() {
 
   return (
     <View style={styles.container}>
-      <FlatList
-        data={tasks}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={tasks.length === 0 ? styles.emptyContent : styles.listContent}
-        refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={() => load(true)} />}
-        ListEmptyComponent={
-          isLoading ? (
-            <Text style={styles.emptyText}>Loading…</Text>
-          ) : errorMessage ? (
-            <Text style={styles.errorText}>{errorMessage}</Text>
-          ) : (
-            <EmptyState message="No tasks yet." />
-          )
-        }
-        renderItem={({ item }) => {
-          const isMine = Boolean(session?.memberId) && session?.memberId === item.assignedTo;
-          return (
-            <Pressable
-              style={[styles.row, isMine && styles.rowMine]}
-              onPress={() => navigation.navigate("TaskDetail", { taskId: item.id })}
-            >
-              <Text style={styles.title}>{item.title}</Text>
-              <Text style={styles.subtitle}>{item.assigneeName ?? "Unassigned"}</Text>
-              <View style={styles.badgeRow}>
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{STATUS_LABELS[item.status]}</Text>
-                </View>
-                {item.acceptanceStatus !== "accepted" ? (
-                  <View style={[styles.badge, styles.badgeAttention]}>
-                    <Text style={[styles.badgeText, styles.badgeAttentionText]}>
-                      {ACCEPTANCE_LABELS[item.acceptanceStatus]}
-                    </Text>
+      <OfflineBanner visible={isOffline || isStale} cachedAt={cachedAt} />
+      {isLoading && tasks.length === 0 ? (
+        <View style={styles.listContent}>
+          {SKELETON_ROWS.map((i) => (
+            <SkeletonRow key={i} />
+          ))}
+        </View>
+      ) : (
+        <FlatList
+          data={tasks}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={tasks.length === 0 ? styles.emptyContent : styles.listContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={() => load(true)}
+              tintColor={colors.lilac.default}
+              colors={[colors.lilac.default]}
+            />
+          }
+          ListEmptyComponent={
+            errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : <EmptyState message="No tasks yet." />
+          }
+          renderItem={({ item, index }) => {
+            const isMine = Boolean(session?.memberId) && session?.memberId === item.assignedTo;
+            return (
+              <Animated.View entering={staggeredEntering(index)} exiting={listItemExiting} layout={listItemLayout}>
+                <Pressable
+                  style={[styles.row, isMine && styles.rowMine]}
+                  onPress={() => navigation.navigate("TaskDetail", { taskId: item.id })}
+                >
+                  <Text style={styles.title}>{item.title}</Text>
+                  <Text style={styles.subtitle}>{item.assigneeName ?? "Unassigned"}</Text>
+                  <View style={styles.badgeRow}>
+                    <View style={styles.badge}>
+                      <Text style={styles.badgeText}>{STATUS_LABELS[item.status]}</Text>
+                    </View>
+                    {item.acceptanceStatus !== "accepted" ? (
+                      <View style={[styles.badge, styles.badgeAttention]}>
+                        <Text style={[styles.badgeText, styles.badgeAttentionText]}>
+                          {ACCEPTANCE_LABELS[item.acceptanceStatus]}
+                        </Text>
+                      </View>
+                    ) : null}
                   </View>
-                ) : null}
-              </View>
-              {item.dueDate ? <Text style={styles.dueDate}>Due {formatDueDate(item.dueDate)}</Text> : null}
-            </Pressable>
-          );
-        }}
-      />
+                  {item.dueDate ? <Text style={styles.dueDate}>Due {formatDueDate(item.dueDate)}</Text> : null}
+                </Pressable>
+              </Animated.View>
+            );
+          }}
+        />
+      )}
 
       {session?.canAssignTasks ? (
-        <Pressable style={styles.fab} onPress={() => navigation.navigate("CreateTask")}>
+        <Pressable
+          style={styles.fab}
+          onPress={() => {
+            impactLight();
+            navigation.navigate("CreateTask");
+          }}
+        >
           <Text style={styles.fabText}>+</Text>
         </Pressable>
       ) : null}
@@ -122,7 +154,6 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.ink },
   listContent: { padding: 16 },
   emptyContent: { flexGrow: 1 },
-  emptyText: { fontFamily: typography.body, color: colors.muted, fontSize: 15, textAlign: "center", marginTop: 40 },
   errorText: {
     fontFamily: typography.body,
     color: colors.candle.default,

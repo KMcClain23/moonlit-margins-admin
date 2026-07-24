@@ -1,6 +1,7 @@
-import { useMemo } from "react";
-import type { StyleProp, ViewStyle } from "react-native";
+import { useEffect, useMemo } from "react";
+import { View, type StyleProp, type ViewStyle } from "react-native";
 import Svg, { Circle } from "react-native-svg";
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from "react-native-reanimated";
 
 export type StarfieldVariant = "dense" | "subtle";
 
@@ -60,18 +61,43 @@ function generateStars(width: number, height: number, variant: StarfieldVariant,
   return stars;
 }
 
+// How much larger than the visible frame the star canvas is generated when
+// animated, per the requested "roughly 1.5x" -- big enough that a rotating
+// corner doesn't obviously peek past the frame edge, though at very
+// elongated aspect ratios (a full-screen phone viewport is far from
+// square) a razor-thin sliver can still theoretically clear it at some
+// angles. In practice this doesn't read as a visible seam: the SVG canvas
+// has no background fill of its own, so an uncovered sliver just shows
+// slightly fewer stars for an instant, not a hard edge against a
+// mismatched color -- the parent behind it is already the same dark
+// background these screens use everywhere else.
+const ANIMATED_SCALE = 1.5;
+
+// A full rotation every ~3.5 minutes -- slow enough to read as ambient
+// background drift rather than a deliberate spin, linear so the motion
+// never accelerates/decelerates or reverses.
+const ROTATION_DURATION_MS = 210000;
+
 /**
  * A dense field of small white dots, sized to fill the given width/height.
  * Purely the SVG itself -- positioning (absolute fill, z-index, etc.) is
  * the caller's responsibility via the `style` prop, so this can be reused
  * behind different layouts without assuming how it should sit relative to
  * its siblings.
+ *
+ * When `animated` (the default), the dot field slowly rotates clockwise
+ * forever. The star canvas itself is generated oversized (ANIMATED_SCALE ×
+ * the requested width/height) and centered with a negative offset inside
+ * an `overflow: "hidden"` frame clipped to the actual requested size, so
+ * rotating it doesn't reveal blank space at the corners the way rotating
+ * an exactly-frame-sized canvas would.
  */
 export default function Starfield({
   width,
   height,
   variant = "dense",
   seed = 1,
+  animated = true,
   style,
 }: {
   width: number;
@@ -81,15 +107,65 @@ export default function Starfield({
    * Starfields stacked in the same view -- otherwise leave it alone so
    * the pattern stays stable. */
   seed?: number;
+  /** Slow continuous clockwise rotation, on by default. Set false for a
+   * static field (e.g. a snapshot/export context where a native-thread
+   * animation loop serves no purpose). */
+  animated?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
-  const stars = useMemo(() => generateStars(width, height, variant, seed), [width, height, variant, seed]);
+  const canvasWidth = animated ? width * ANIMATED_SCALE : width;
+  const canvasHeight = animated ? height * ANIMATED_SCALE : height;
+
+  const stars = useMemo(
+    () => generateStars(canvasWidth, canvasHeight, variant, seed),
+    [canvasWidth, canvasHeight, variant, seed]
+  );
+
+  const rotation = useSharedValue(0);
+
+  useEffect(() => {
+    if (!animated) return;
+    rotation.value = withRepeat(
+      withTiming(360, { duration: ROTATION_DURATION_MS, easing: Easing.linear }),
+      -1,
+      false
+    );
+  }, [animated, rotation]);
+
+  const rotationStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${rotation.value}deg` }],
+  }));
+
+  const dots = stars.map((star, index) => (
+    <Circle key={index} cx={star.x} cy={star.y} r={star.r} fill="#FFFFFF" fillOpacity={star.opacity} />
+  ));
+
+  if (!animated) {
+    return (
+      <Svg width={width} height={height} style={style} pointerEvents="none">
+        {dots}
+      </Svg>
+    );
+  }
 
   return (
-    <Svg width={width} height={height} style={style} pointerEvents="none">
-      {stars.map((star, index) => (
-        <Circle key={index} cx={star.x} cy={star.y} r={star.r} fill="#FFFFFF" fillOpacity={star.opacity} />
-      ))}
-    </Svg>
+    <View style={[style, { width, height, overflow: "hidden" }]} pointerEvents="none">
+      <Animated.View
+        style={[
+          {
+            position: "absolute",
+            width: canvasWidth,
+            height: canvasHeight,
+            left: -(canvasWidth - width) / 2,
+            top: -(canvasHeight - height) / 2,
+          },
+          rotationStyle,
+        ]}
+      >
+        <Svg width={canvasWidth} height={canvasHeight} pointerEvents="none">
+          {dots}
+        </Svg>
+      </Animated.View>
+    </View>
   );
 }

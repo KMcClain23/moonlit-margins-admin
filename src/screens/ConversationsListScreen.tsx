@@ -1,15 +1,22 @@
 import { useCallback, useState } from "react";
-import { Alert, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
+import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { leaveConversation, listConversations, type Conversation } from "../lib/messagesApi";
+import { listConversations, type Conversation } from "../lib/messagesApi";
 import { ApiError } from "../lib/apiError";
+import { impactLight } from "../lib/haptics";
 import { clearBadgeCount } from "../lib/pushNotifications";
 import { setUnreadCount } from "../lib/unreadMessages";
+import { useNetworkStatus } from "../lib/useNetworkStatus";
 import type { MessagesStackParamList } from "../navigation/RootNavigator";
 import { colors } from "../theme/colors";
 import { typography } from "../theme/typography";
 import EmptyState from "../components/EmptyState";
+import OfflineBanner from "../components/OfflineBanner";
+import SkeletonRow from "../components/SkeletonRow";
+import SwipeableConversationRow from "../components/SwipeableConversationRow";
+
+const SKELETON_ROWS = Array.from({ length: 5 }, (_, i) => i);
 
 type Nav = NativeStackNavigationProp<MessagesStackParamList, "ConversationsList">;
 
@@ -19,7 +26,9 @@ export default function ConversationsListScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [leavingId, setLeavingId] = useState<string | null>(null);
+  const [isStale, setIsStale] = useState(false);
+  const [cachedAt, setCachedAt] = useState<string | null>(null);
+  const isOffline = useNetworkStatus();
 
   const load = useCallback(async (isRefresh: boolean) => {
     if (isRefresh) {
@@ -29,12 +38,14 @@ export default function ConversationsListScreen() {
     }
     setErrorMessage(null);
     try {
-      const data = await listConversations();
-      setConversations(data);
+      const result = await listConversations();
+      setConversations(result.data);
+      setIsStale(result.stale);
+      setCachedAt(result.cachedAt);
       // Already have the full, fresh list here -- push the total straight
       // to the Messages tab badge instead of making it wait for its own
       // next poll (or redundantly re-fetching the same data itself).
-      setUnreadCount(data.reduce((sum, c) => sum + c.unreadCount, 0));
+      setUnreadCount(result.data.reduce((sum, c) => sum + c.unreadCount, 0));
     } catch (err) {
       setErrorMessage(err instanceof ApiError ? err.message : "Could not load conversations.");
     } finally {
@@ -53,77 +64,82 @@ export default function ConversationsListScreen() {
     }, [load])
   );
 
-  async function handleLeave(conversationId: string) {
-    setLeavingId(conversationId);
-    setErrorMessage(null);
-    try {
-      await leaveConversation(conversationId);
-      // Only this row's participation is gone server-side -- drop it from
-      // the local list directly rather than refetching everything.
-      setConversations((current) => current.filter((c) => c.id !== conversationId));
-    } catch (err) {
-      setErrorMessage(err instanceof ApiError ? err.message : "Couldn't leave that conversation.");
-    } finally {
-      setLeavingId(null);
-    }
+  // SwipeableConversationRow already made the API call by the time any
+  // of these fire -- each one only needs to reconcile local state (and,
+  // for read-state changes, the Messages tab badge) to match what the
+  // server now has, the same way handleLeave used to do inline.
+
+  function handleRowLeft(conversationId: string) {
+    setConversations((current) => current.filter((c) => c.id !== conversationId));
   }
 
-  function confirmLeave(conversation: Conversation) {
-    Alert.alert("Leave conversation?", "You won't see it here anymore.", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Leave",
-        style: "destructive",
-        onPress: () => void handleLeave(conversation.id),
-      },
-    ]);
+  function handleRowReadStateChange(conversationId: string, read: boolean) {
+    setConversations((current) => {
+      const next = current.map((c) => (c.id === conversationId ? { ...c, unreadCount: read ? 0 : 1 } : c));
+      setUnreadCount(next.reduce((sum, c) => sum + c.unreadCount, 0));
+      return next;
+    });
+  }
+
+  function handleRowMutedChange(conversationId: string, muted: boolean) {
+    setConversations((current) => current.map((c) => (c.id === conversationId ? { ...c, muted } : c)));
   }
 
   return (
     <View style={styles.container}>
+      <OfflineBanner visible={isOffline || isStale} cachedAt={cachedAt} />
       {errorMessage && conversations.length > 0 ? (
         <Text style={styles.inlineErrorText}>{errorMessage}</Text>
       ) : null}
-      <FlatList
-        data={conversations}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={conversations.length === 0 ? styles.emptyContent : styles.listContent}
-        refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={() => load(true)} />}
-        ListEmptyComponent={
-          isLoading ? (
-            <Text style={styles.emptyText}>Loading…</Text>
-          ) : errorMessage ? (
-            <Text style={styles.errorText}>{errorMessage}</Text>
-          ) : (
-            <EmptyState message="No conversations yet." />
-          )
-        }
-        renderItem={({ item }) => {
-          const hasUnread = item.unreadCount > 0;
-          return (
-            <Pressable
-              style={styles.row}
+      {isLoading && conversations.length === 0 ? (
+        <View style={styles.listContent}>
+          {SKELETON_ROWS.map((i) => (
+            <SkeletonRow key={i} />
+          ))}
+        </View>
+      ) : (
+        <FlatList
+          data={conversations}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={conversations.length === 0 ? styles.emptyContent : styles.listContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={() => load(true)}
+              tintColor={colors.lilac.default}
+              colors={[colors.lilac.default]}
+            />
+          }
+          ListEmptyComponent={
+            errorMessage ? (
+              <Text style={styles.errorText}>{errorMessage}</Text>
+            ) : (
+              <EmptyState message="No conversations yet." />
+            )
+          }
+          renderItem={({ item, index }) => (
+            <SwipeableConversationRow
+              conversation={item}
+              index={index}
               onPress={() =>
                 navigation.navigate("ConversationDetail", { conversationId: item.id, title: item.title })
               }
-              onLongPress={() => confirmLeave(item)}
-              disabled={leavingId === item.id}
-            >
-              <Text style={[styles.title, hasUnread && styles.titleUnread]}>
-                {item.title}
-                {item.type === "group" ? <Text style={styles.groupBadge}>  Group</Text> : null}
-              </Text>
-              {hasUnread ? (
-                <View style={styles.unreadBadge}>
-                  <Text style={styles.unreadBadgeText}>{item.unreadCount > 99 ? "99+" : item.unreadCount}</Text>
-                </View>
-              ) : null}
-            </Pressable>
-          );
-        }}
-      />
+              onReadStateChange={handleRowReadStateChange}
+              onMutedChange={handleRowMutedChange}
+              onLeft={handleRowLeft}
+              onError={setErrorMessage}
+            />
+          )}
+        />
+      )}
 
-      <Pressable style={styles.fab} onPress={() => navigation.navigate("NewConversation")}>
+      <Pressable
+        style={styles.fab}
+        onPress={() => {
+          impactLight();
+          navigation.navigate("NewConversation");
+        }}
+      >
         <Text style={styles.fabText}>+</Text>
       </Pressable>
     </View>
@@ -134,7 +150,6 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.ink },
   listContent: { padding: 16 },
   emptyContent: { flexGrow: 1 },
-  emptyText: { fontFamily: typography.body, color: colors.muted, fontSize: 15, textAlign: "center", marginTop: 40 },
   errorText: {
     fontFamily: typography.body,
     color: colors.candle.default,
@@ -151,31 +166,6 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingHorizontal: 16,
   },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 10,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.hairline,
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 12,
-  },
-  title: { flex: 1, fontFamily: typography.bodySemibold, fontSize: 16, color: colors.parchment },
-  titleUnread: { fontFamily: typography.bodyBold },
-  groupBadge: { fontFamily: typography.mono, fontSize: 11, color: colors.lilac.soft },
-  unreadBadge: {
-    minWidth: 22,
-    height: 22,
-    borderRadius: 11,
-    paddingHorizontal: 6,
-    backgroundColor: colors.candle.default,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  unreadBadgeText: { fontFamily: typography.bodySemibold, color: colors.ink, fontSize: 12 },
   fab: {
     position: "absolute",
     right: 20,

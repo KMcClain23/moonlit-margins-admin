@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useAuth } from "../lib/authStore";
 import { listTasks, updateTask, type Task, type TaskEditAssignment, type TaskStatus } from "../lib/tasksApi";
-import { listMembers, type MemberOption } from "../lib/membersApi";
+import { listMembers, type Member } from "../lib/membersApi";
 import { ApiError } from "../lib/apiError";
+import { impactLight } from "../lib/haptics";
+import { useToast } from "../lib/toastStore";
 import type { TasksStackParamList } from "../navigation/RootNavigator";
 import DateField from "../components/DateField";
 import { colors } from "../theme/colors";
@@ -27,6 +30,7 @@ export default function EditTaskScreen() {
   const route = useRoute<EditRoute>();
   const { taskId } = route.params;
   const { session } = useAuth();
+  const { showToast } = useToast();
 
   const [task, setTask] = useState<Task | null>(null);
   const [isLoadingTask, setIsLoadingTask] = useState(true);
@@ -39,7 +43,7 @@ export default function EditTaskScreen() {
   const [assignMode, setAssignMode] = useState<AssignMode>("unassigned");
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
 
-  const [members, setMembers] = useState<MemberOption[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
   const [isLoadingMembers, setIsLoadingMembers] = useState(true);
   const [membersError, setMembersError] = useState<string | null>(null);
 
@@ -51,9 +55,9 @@ export default function EditTaskScreen() {
   useEffect(() => {
     let cancelled = false;
     listTasks()
-      .then((tasks) => {
+      .then((result) => {
         if (cancelled) return;
-        const found = tasks.find((t) => t.id === taskId) ?? null;
+        const found = result.data.find((t) => t.id === taskId) ?? null;
         setTask(found);
         if (found) {
           setTitle(found.title);
@@ -86,9 +90,9 @@ export default function EditTaskScreen() {
   useEffect(() => {
     let cancelled = false;
     listMembers()
-      .then((data) => {
+      .then((result) => {
         if (cancelled) return;
-        setMembers(data);
+        setMembers(result.data);
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -133,6 +137,7 @@ export default function EditTaskScreen() {
     title.trim().length >= 2 && !isSubmitting && (assignMode !== "member" || Boolean(selectedMemberId));
 
   async function handleSubmit() {
+    impactLight();
     setErrorMessage(null);
     setIsSubmitting(true);
 
@@ -147,6 +152,7 @@ export default function EditTaskScreen() {
         status,
         assignment,
       });
+      showToast("Task updated");
       navigation.goBack();
     } catch (err) {
       setErrorMessage(err instanceof ApiError ? err.message : "Could not save those changes.");
@@ -156,7 +162,7 @@ export default function EditTaskScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <KeyboardAwareScrollView contentContainerStyle={styles.container} bottomOffset={20}>
       <Text style={styles.label}>Title</Text>
       <TextInput
         style={styles.input}
@@ -256,7 +262,7 @@ export default function EditTaskScreen() {
           <Text style={styles.submitButtonText}>Save changes</Text>
         )}
       </Pressable>
-    </ScrollView>
+    </KeyboardAwareScrollView>
   );
 }
 
